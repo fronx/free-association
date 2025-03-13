@@ -13,6 +13,8 @@ export function createTreemap(data, width, height) {
     const SHRINK_RATE = (d) => d.data.points * -0.05; // Negative growth rate for shrinking
     let draggedNode = null; // Track currently dragged node
     let dragTarget = null; // Track the potential drop target
+    let mouseDownPosition = null;
+    let dragThreshold = 5; // pixels of movement required to start dragging
 
     // Helper functions
     const uid = (function() {
@@ -155,7 +157,22 @@ export function createTreemap(data, width, height) {
   
     function render(group, root) {
       // First, create groups only for nodes with value or root
-      const nodeData = (root.children || []).concat(root);
+      let nodeData;
+      
+      // Handle different types of children collections (Array or Map)
+      if (root.children && Array.isArray(root.children)) {
+          // D3 hierarchy nodes have children as arrays
+          nodeData = root.children.concat(root);
+      } else if (root.children && typeof root.children.values === 'function') {
+          // Our data nodes might have children as Maps
+          nodeData = Array.from(root.children.values()).concat(root);
+      } else if (root.childrenArray) {
+          // For contributor trees, we might have childrenArray defined
+          nodeData = root.childrenArray.concat(root);
+      } else {
+          // Fallback to just the root if no children found
+          nodeData = [root];
+      }
 
       const node = group
           .selectAll("g")
@@ -171,7 +188,14 @@ export function createTreemap(data, width, height) {
           .call(d3.drag()
               .on("start", dragStarted)
               .on("drag", dragging)
-              .on("end", dragEnded));
+              .on("end", dragEnded)
+              .filter(event => {
+                  // Only enable drag on left mouse button (not right click which we use for shrinking)
+                  // AND only if there's actual mouse movement (dx or dy not zero)
+                  // This prevents drag from interfering with grow/shrink on click-and-hold
+                  return event.button === 0 && 
+                         (Math.abs(event.dx) > 3 || Math.abs(event.dy) > 3);
+              }));
 
         node.append("title")
             .text(d => {
@@ -359,17 +383,33 @@ export function createTreemap(data, width, height) {
                 isGrowing = false;
                 
                 if (d !== root) {
-                    // Determine if this is a right-click or two-finger touch
-                    const isShrinking = event.type === 'mousedown' ? 
-                        event.button === 2 : // right click
-                        event.touches.length === 2; // two finger touch
+                    // Explicitly handle each input type
+                    let isShrinking = false;
+                    
+                    if (event.type === 'mousedown') {
+                        // Mouse events: button 0 = left (grow), button 2 = right (shrink)
+                        if (event.button === 0) {
+                            isShrinking = false; // Left click = grow
+                        } else if (event.button === 2) {
+                            isShrinking = true;  // Right click = shrink
+                        }
+                    } else if (event.type === 'touchstart') {
+                        // Touch events: 1 finger = grow, 2 fingers = shrink
+                        isShrinking = event.touches.length === 2;
+                    }
 
-                    console.log('Mouse event:', event.type, 'Button:', event.button, 'Shrinking:', isShrinking);
+                    console.log('Mouse event details:');
+                    console.log('- Type:', event.type);
+                    console.log('- Button:', event.button, '(0=left, 1=middle, 2=right)');
+                    console.log('- Shrinking mode:', isShrinking);
+                    console.log('- Target node:', d.data.name);
 
                     growthTimeout = setTimeout(() => {
                         // Only start growing/shrinking if still touching the same node
                         if (isTouching && activeNode === d) {
-                            console.log('Starting growth/shrink after delay. Shrinking:', isShrinking);
+                            console.log('Starting growth/shrink after delay:');
+                            console.log('- Shrinking mode:', isShrinking);
+                            console.log('- Growth rate:', isShrinking ? SHRINK_RATE(d) : GROWTH_RATE(d));
                             isGrowing = true;
                             growthInterval = setInterval(() => {
                                 // Only continue if still touching
@@ -380,9 +420,20 @@ export function createTreemap(data, width, height) {
                                     return;
                                 }
                                 
-                                // Calculate growth/shrink amount
-                                const rate = isShrinking ? SHRINK_RATE(d) : GROWTH_RATE(d);
-                                const newPoints = Math.max(0, d.data.points + rate); // Prevent negative points
+                                // Calculate growth/shrink amount - More explicit
+                                let rate;
+                                if (isShrinking) {
+                                    rate = SHRINK_RATE(d); // Negative value for shrinking
+                                    console.log(`Shrinking ${d.data.name} by ${rate}`);
+                                } else {
+                                    rate = GROWTH_RATE(d); // Positive value for growing
+                                    console.log(`Growing ${d.data.name} by ${rate}`);
+                                }
+                                
+                                const oldPoints = d.data.points;
+                                const newPoints = Math.max(0, oldPoints + rate); // Prevent negative points
+                                console.log(`Points changing: ${oldPoints} → ${newPoints}`);
+                                
                                 d.data.setPoints(newPoints);
                                 
                                 // Recompute hierarchy ensuring values match points
@@ -512,15 +563,7 @@ export function createTreemap(data, width, height) {
                 activeNode = null;
                 isGrowing = false;
             }
-        })
-        .call(d3.drag()
-            .on("start", dragStarted)
-            .on("drag", dragging)
-            .on("end", dragEnded)
-            .filter(event => {
-                // Only enable drag on left mouse button (not right click which we use for shrinking)
-                return event.button === 0;
-            }));
+        });
 
         if (root.data.children.size === 0 && root !== data) {  // Check if view is empty and not root
             group.append("text")
@@ -630,18 +673,14 @@ export function createTreemap(data, width, height) {
 
     // Add drag handlers
     function dragStarted(event, d) {
-        console.log("Drag started on node:", d.data.name);
+        // Don't start dragging if growth is already active
+        if (isGrowing) {
+            console.log("Ignoring drag start because growth is active");
+            return;
+        }
         
-        // Cancel any timeout/growth behavior if dragging starts
-        if (growthTimeout) {
-            clearTimeout(growthTimeout);
-            growthTimeout = null;
-        }
-        if (growthInterval) {
-            clearInterval(growthInterval);
-            growthInterval = null;
-        }
-        isGrowing = false;
+        // Don't cancel growth immediately - check if there's actual movement first
+        console.log("Potential drag detected on node:", d.data.name);
         
         // Save the dragged node, but don't allow dragging the root
         if (d === root) {
@@ -655,22 +694,44 @@ export function createTreemap(data, width, height) {
             return;
         }
         
-        draggedNode = d;
-        
-        // Highlight the node being dragged
-        d3.select(this).select("rect")
-            .attr("stroke", "#f39c12")
-            .attr("stroke-width", "3");
-        
-        // Raise the element being dragged to the front
-        d3.select(this).raise();
+        // Only start actual dragging if there's real movement
+        // We'll check this in the drag event
     }
     
     function dragging(event, d) {
-        if (!draggedNode) return;
+        // Only continue with dragging if not currently growing
+        if (isGrowing) {
+            console.log("Ignoring drag because growth is active");
+            return;
+        }
+        
+        // If we haven't set draggedNode yet, this is the first drag event
+        if (!draggedNode) {
+            console.log("Starting real drag with movement");
+            
+            // Now we know it's a real drag, not just a hold - cancel growth
+            if (growthTimeout) {
+                clearTimeout(growthTimeout);
+                growthTimeout = null;
+            }
+            if (growthInterval) {
+                clearInterval(growthInterval);
+                growthInterval = null;
+            }
+            
+            draggedNode = d;
+            
+            // Highlight the node being dragged
+            d3.select(event.sourceEvent.target.parentNode).select("rect")
+                .attr("stroke", "#f39c12")
+                .attr("stroke-width", "3");
+            
+            // Raise the element being dragged to the front
+            d3.select(event.sourceEvent.target.parentNode).raise();
+        }
         
         // For treemap, handle differently - just change opacity and highlight
-        d3.select(this).attr("opacity", 0.7);
+        d3.select(event.sourceEvent.target.parentNode).attr("opacity", 0.7);
         
         // Find potential target node under cursor
         // Reset previous target highlight if exists
