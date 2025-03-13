@@ -51,6 +51,16 @@ export function createTreemap(data, width, height) {
     let group = svg.append("g")
         .call(render, root);
 
+    // Helper to darken a color for the fulfillment indicator
+    function darkenColor(color, factor = 0.3) {
+        const rgb = d3.rgb(color);
+        return d3.rgb(
+            Math.max(0, rgb.r - rgb.r * factor),
+            Math.max(0, rgb.g - rgb.g * factor),
+            Math.max(0, rgb.b - rgb.b * factor)
+        );
+    }
+
     function tile(node, x0, y0, x1, y1) {
         if (!node.children) return;
         
@@ -105,7 +115,7 @@ export function createTreemap(data, width, height) {
                 return d === root ? `translate(0,-50)` : `translate(${x(d.x0)},${y(d.y0)})`;
             });
 
-        group.selectAll("rect")
+        group.selectAll("rect.node-rect")
             .attr("width", d => {
                 if (!d || typeof d.x0 === 'undefined') return 0;
                 return d === root ? width : x(d.x1) - x(d.x0);
@@ -113,6 +123,20 @@ export function createTreemap(data, width, height) {
             .attr("height", d => {
                 if (!d || typeof d.y0 === 'undefined') return 0;
                 return d === root ? 50 : y(d.y1) - y(d.y0);
+            });
+
+        // Update fulfillment indicator rectangles
+        group.selectAll("rect.fulfillment-indicator")
+            .attr("width", d => {
+                if (!d || typeof d.x0 === 'undefined' || d === root) return 0;
+                const fullWidth = x(d.x1) - x(d.x0);
+                // Use the fulfillment percentage to determine width
+                const fulfillmentPercentage = d.data.fulfilled;
+                return fullWidth * fulfillmentPercentage;
+            })
+            .attr("height", d => {
+                if (!d || typeof d.y0 === 'undefined' || d === root) return 0;
+                return y(d.y1) - y(d.y0);
             });
 
         // Update type indicators along with other elements
@@ -145,7 +169,12 @@ export function createTreemap(data, width, height) {
               .on("end", dragEnded));
 
         node.append("title")
-            .text(d => `${name(d)}\n`);
+            .text(d => {
+                // Format fulfillment as percentage for the tooltip
+                const fulfillmentText = d === root ? "" : 
+                    `\nFulfillment: ${Math.round(d.data.fulfilled * 100)}%`;
+                return `${name(d)}${fulfillmentText}`;
+            });
 
         node.selectAll("text").remove();
 
@@ -163,7 +192,23 @@ export function createTreemap(data, width, height) {
             .attr("stroke-width", d => {
                 // Only make stroke wider for nodes with non-contributor children
                 return (d.data.hasDirectContributorChild) ? "2" : "2";
+            });
+
+        // Add fulfillment indicator rectangle (darker shade)
+        node.filter(d => d !== root) // Don't add to root node
+            .append("rect")
+            .attr("class", "fulfillment-indicator")
+            .attr("fill", d => {
+                const baseColor = getColorForName(d.data.name);
+                return darkenColor(baseColor);
             })
+            .attr("width", d => {
+                const fullWidth = x(d.x1) - x(d.x0);
+                const fulfillmentPercentage = d.data.fulfilled;
+                return fullWidth * fulfillmentPercentage;
+            })
+            .attr("height", d => y(d.y1) - y(d.y0))
+            .attr("pointer-events", "none"); // So it doesn't interfere with click events
 
         node.append("clipPath")
             .attr("id", d => (d.clipUid = uid("clip")).id)
