@@ -47,6 +47,11 @@ export function createTreemap(data, width, height) {
         .attr("viewBox", [0.5, -50.5, width, height + 50])
         .style("font", "10px sans-serif");
 
+    // Prevent context menu (right-click menu) to allow for right-click interactions
+    svg.on("contextmenu", event => {
+        event.preventDefault();
+    });
+
     // Create initial group
     let group = svg.append("g")
         .call(render, root);
@@ -359,9 +364,12 @@ export function createTreemap(data, width, height) {
                         event.button === 2 : // right click
                         event.touches.length === 2; // two finger touch
 
+                    console.log('Mouse event:', event.type, 'Button:', event.button, 'Shrinking:', isShrinking);
+
                     growthTimeout = setTimeout(() => {
                         // Only start growing/shrinking if still touching the same node
                         if (isTouching && activeNode === d) {
+                            console.log('Starting growth/shrink after delay. Shrinking:', isShrinking);
                             isGrowing = true;
                             growthInterval = setInterval(() => {
                                 // Only continue if still touching
@@ -400,7 +408,7 @@ export function createTreemap(data, width, height) {
                                         `translate(${x(d.x0)},${y(d.y0)})`);
                                 
                                 // Transition rectangles
-                                nodes.select("rect")
+                                nodes.select("rect.node-rect")
                                     .transition()
                                     .duration(GROWTH_TICK)
                                     .attr("width", d => d === root ? 
@@ -408,6 +416,20 @@ export function createTreemap(data, width, height) {
                                         Math.max(0, x(d.x1) - x(d.x0)))
                                     .attr("height", d => d === root ? 
                                         50 : 
+                                        Math.max(0, y(d.y1) - y(d.y0)));
+                                
+                                // Also transition fulfillment indicator rectangles to maintain correct proportions
+                                nodes.select("rect.fulfillment-indicator")
+                                    .transition()
+                                    .duration(GROWTH_TICK)
+                                    .attr("width", d => {
+                                        if (d === root) return 0;
+                                        const fullWidth = x(d.x1) - x(d.x0);
+                                        const fulfillmentPercentage = d.data.fulfilled;
+                                        return Math.max(0, fullWidth * fulfillmentPercentage);
+                                    })
+                                    .attr("height", d => d === root ? 
+                                        0 : 
                                         Math.max(0, y(d.y1) - y(d.y0)));
                                 
                                 // Update text positions
