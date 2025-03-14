@@ -6,16 +6,50 @@ body {
     height: 100vh;
     overflow: hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    background-color: #f8f9fa;
+    color: #333;
+}
+
+/* App header */
+.app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 20px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    z-index: 100;
+    height: 50px;
+    box-sizing: border-box;
+}
+
+.app-title {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.app-title h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #4361ee;
+}
+
+.app-subtitle {
+    font-size: 14px;
+    color: #666;
+    font-weight: 400;
 }
 
 /* Main visualization container */
 .visualization-container {
     display: grid;
     width: 100%;
-    height: calc(100vh - 50px); /* Account for menu bar */
-    padding: 0;  /* Remove padding */
+    height: calc(100vh - 50px); /* Account for header */
+    padding: 20px;  /* Add padding */
     box-sizing: border-box;
-    gap: 0;  /* Remove gap */
+    gap: 20px;  /* Increase gap */
     
     /* Desktop layout: side by side with 3/4 to 1/4 ratio */
     grid-template-columns: 3fr 1fr;  /* TreeMap takes 3/4, PieChart takes 1/4 */
@@ -26,13 +60,25 @@ body {
         grid-template-columns: 1fr;
         grid-template-rows: 3fr 1fr !important;  /* Same 3/4 to 1/4 ratio for vertical layout */
         height: calc(100vh - 50px);
+        padding: 10px;
+        gap: 10px;
     }
+}
+
+.viz-panel {
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    background: #fff;
+    transition: box-shadow 0.3s ease;
+}
+
+.viz-panel:hover {
+    box-shadow: 0 6px 16px rgba(0,0,0,0.12);
 }
 
 #treemap-container {
     width: 100%;
     height: 100%;
-    background: #fff;
     min-height: 0;
     overflow: hidden;
 }
@@ -40,7 +86,6 @@ body {
 #pie-section {
     width: 100%;
     height: 100%;
-    background: #fff;
     min-height: 0;
     overflow: hidden;
     display: flex;
@@ -67,11 +112,27 @@ body {
     justify-content: center;
     user-select: none;  /* Prevent text selection */
     cursor: pointer;    /* Show pointer cursor */
+    position: relative;
     
     @media (max-width: 768px) {
         width: auto;
         height: 100%;
     }
+}
+
+#pie-container:hover::after {
+    content: "Click for actions";
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(67, 97, 238, 0.9);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    opacity: 0.8;
+    pointer-events: none;
 }
 
 #pie-container svg {
@@ -85,6 +146,80 @@ body {
     -ms-user-select: none;
 }
 
+/* Controls container */
+.controls-container {
+    position: absolute;
+    top: 60px; /* Below header */
+    right: 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 100;
+}
+
+.search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #999;
+    pointer-events: none;
+}
+
+.search-input {
+    padding: 10px 16px 10px 12px;
+    padding-right: 36px; /* Space for icon */
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    min-width: 200px;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.2s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.search-input:focus + .search-icon {
+    color: #4361ee;
+}
+
+.toggle-button {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 6px;
+    background: #4361ee;
+    color: white;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(67, 97, 238, 0.2);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.toggle-button:hover {
+    background: #3a56e4;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(67, 97, 238, 0.25);
+}
+
+.toggle-button:active {
+    transform: translateY(0);
+}
+
 /* Menu bar styles */
 .menu-bar {
     height: 50px;
@@ -92,8 +227,9 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: #f5f5f5;
-    border-bottom: 1px solid #ddd;
+    background: #fff;
+    border-bottom: 1px solid #eaeaea;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 svg {
@@ -106,6 +242,10 @@ svg {
     width: 200px;
     height: 200px;
     margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-radius: 4px;
+    padding: 8px;
+    background: #fff;
 }
 
 #public-key-text {
@@ -115,24 +255,31 @@ svg {
     word-break: break-all;
     max-width: 80%;
     font-family: inherit;
+    padding: 8px;
+    background: #f5f7fa;
+    border-radius: 4px;
+    border: 1px solid #eaeaea;
 }
 
 .menu-button {
-    padding: 8px 16px;
+    padding: 10px 18px;
     margin-left: 10px;
     border: none;
-    border-radius: 4px;
-    background: #4CAF50;
+    border-radius: 6px;
+    background: #4361ee;
     color: white;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: all 0.2s ease;
     font-family: inherit;
     font-size: 14px;
     font-weight: 500;
+    box-shadow: 0 2px 4px rgba(67, 97, 238, 0.2);
 }
 
 .menu-button:hover {
-    background: #45a049;
+    background: #3a56e4;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(67, 97, 238, 0.25);
 }
 
 .node-popup {
@@ -141,80 +288,158 @@ svg {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0,0,0,0.6);
     display: none;
     align-items: center;
     justify-content: center;
     z-index: 1001;
+    backdrop-filter: blur(3px);
+    transition: opacity 0.3s ease;
+    opacity: 0;
 }
 
 .node-popup.active {
     display: flex;
+    opacity: 1;
 }
 
 .node-popup-content {
     background: white;
-    padding: 24px;
-    border-radius: 8px;
-    min-width: 300px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    padding: 28px;
+    border-radius: 12px;
+    min-width: 320px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
     font-family: inherit;
+    transform: scale(0.95);
+    transition: transform 0.2s ease;
+    animation: popup-appear 0.2s forwards;
+}
+
+@keyframes popup-appear {
+    0% { opacity: 0; transform: scale(0.95); }
+    100% { opacity: 1; transform: scale(1); }
 }
 
 .node-popup-content h2 {
     font-size: 24px;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
     color: #333;
-    font-weight: 500;
+    font-weight: 600;
     text-align: center;
     width: 100%;
-    padding: 0 0 5px;
+    padding: 0 0 10px;
+    border-bottom: 2px solid #f0f0f0;
 }
 
 .form-group {
-    margin-bottom: 16px;
+    margin-bottom: 20px;
 }
 
 .form-group label {
     display: block;
     margin-bottom: 8px;
     font-weight: 500;
-    color: #555;
+    color: #444;
     font-size: 14px;
 }
 
 .form-group input {
     width: 100%;
-    padding: 8px;
+    padding: 10px 12px;
     border: 1px solid #ddd;
-    border-radius: 4px;
+    border-radius: 6px;
     font-family: inherit;
     font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #4361ee;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+}
+
+.range-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.range-wrapper output {
+    min-width: 40px;
+    text-align: right;
+    color: #4361ee;
+    font-weight: 500;
+}
+
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #e9ecef;
+    outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #4361ee;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 6px rgba(67, 97, 238, 0.15);
 }
 
 .form-buttons {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     justify-content: flex-end;
+    margin-top: 24px;
 }
 
 .form-buttons button {
-    padding: 8px 16px;
-    border-radius: 4px;
+    padding: 10px 18px;
+    border-radius: 6px;
     border: none;
     cursor: pointer;
     font-family: inherit;
     font-size: 14px;
     font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.form-buttons button[type="submit"] {
-    background: #2196F3;
+.form-buttons button[type="submit"], 
+.form-buttons button.primary {
+    background: #4361ee;
     color: white;
+    box-shadow: 0 2px 4px rgba(67, 97, 238, 0.2);
+}
+
+.form-buttons button[type="submit"]:hover,
+.form-buttons button.primary:hover {
+    background: #3a56e4;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(67, 97, 238, 0.25);
 }
 
 .form-buttons button.cancel {
-    background: #ddd;
+    background: #f1f3f9;
+    color: #555;
+}
+
+.form-buttons button.cancel:hover {
+    background: #e5e8f5;
 }
 
 .qr-display {
@@ -235,253 +460,241 @@ svg {
     max-width: min(100%, 60px);
     max-height: min(100%, 60px);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: #f5f5f5;
+    background: #f1f3f9;
     cursor: pointer;
-    transition: background 0.3s ease;
+    transition: all 0.2s ease;
     border-radius: 50%;
     padding: 10px;
     text-align: center;
     margin: 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    position: relative;
 }
 
 .drop-zone span {
     font-size: clamp(10px, 2.5vw, 14px);  /* Responsive font size */
-    color: #666;
-    user-select: none;
-    word-wrap: break-word;
-    max-width: 100%;
-    line-height: 1.2;
+    font-weight: 500;
+    color: #4361ee;
+    transition: all 0.2s ease;
+}
+
+.icon-overlay {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: #4361ee;
+    color: white;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    text-align: center;
+    font-size: 70%;
+    transform: translate(25%, 25%);
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    padding: 0;
+    line-height: 0;
+    overflow: visible;
+}
+
+/* Target the specific Font Awesome icons */
+.fa-plus.icon-overlay,
+.fa-share-nodes.icon-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    line-height: 0;
+}
+
+/* Fix share-nodes icon specific alignment */
+.fa-share-nodes.icon-overlay::before {
+    position: relative;
+    top: 0;
+    left: 0;
 }
 
 .drop-zone:hover {
-    background: #e5e5e5;
+    background: #4361ee;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(67, 97, 238, 0.25);
 }
 
 .drop-zone:hover span {
-    color: #333;
+    color: white;
 }
 
-/* Update the positioning classes for drop-zones */
+.drop-zone:hover .icon-overlay {
+    background: white;
+    color: #4361ee;
+}
+
+.hover-effect {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+    100% { transform: scale(1); }
+}
+
 .drop-zone.top-right {
-    align-self: center;  /* Center horizontally in desktop */
+    grid-area: 1 / 2 / 2 / 3;
+    align-self: flex-start;
+    justify-self: flex-end;
     
     @media (max-width: 768px) {
-        align-self: center;  /* Maintain center alignment in mobile */
+        align-self: center;
+        justify-self: flex-start;
     }
 }
 
 .drop-zone.bottom-left {
-    align-self: center;  /* Center horizontally in desktop */
+    grid-area: 2 / 1 / 3 / 2;
+    align-self: flex-end;
+    justify-self: flex-start;
     
     @media (max-width: 768px) {
-        align-self: center;  /* Maintain center alignment in mobile */
+        align-self: center;
+        justify-self: flex-end;
     }
 }
 
-.view-toggle {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    padding: 5px 10px;
-    background: #f5f5f5;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    z-index: 100;
+.search-highlight {
+    fill: #ffeb3b !important;
+    stroke: #f57c00 !important;
+    stroke-width: 2px !important;
 }
 
-.view-toggle:hover {
-    background: #e5e5e5;
-}
-
-/* Add these styles for the pie menu */
 #pieMenuForm {
-    text-align: center;
+    width: 300px;
 }
 
 #pieMenuForm .menu-buttons {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
     margin: 20px 0;
-    padding: 10px;
 }
 
 #pieMenuForm .menu-button {
-    aspect-ratio: 1;
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background: #f5f5f5;
-    color: #666;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 10px;
-    margin: 0 auto;
-    transition: all 0.3s ease;
-    border: none;
-    cursor: pointer;
+    padding: 16px;
+    margin: 0;
+    background: #f1f3f9;
+    color: #4361ee;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    height: 90px;
+    box-shadow: none;
 }
 
 #pieMenuForm .menu-button span {
     font-size: 14px;
-    line-height: 1.2;
+    font-weight: 500;
+    margin-top: 8px;
     text-align: center;
-    word-wrap: break-word;
-    max-width: 100%;
-}
-
-/* Add specific style for emoji */
-#pieMenuForm .menu-button span:has(emoji) {
-    font-size: 32px;  /* Make emoji bigger */
-}
-
-#pieMenuForm .menu-button:hover {
-    background: #e5e5e5;
-    color: #333;
-    transform: scale(1.05);
-}
-
-#pieMenuForm .form-buttons {
-    margin-top: 20px;
-    justify-content: center;
-}
-
-#pieMenuForm .cancel {
-    background: #f5f5f5;
-    color: #666;
-    padding: 8px 20px;
-    border-radius: 20px;
-    transition: all 0.3s ease;
-}
-
-#pieMenuForm .cancel:hover {
-    background: #e5e5e5;
-    color: #333;
-}
-
-#pieMenuForm h2 {
-    margin: 10px 0 20px 0;
-    padding-bottom: 10px;
-    border-bottom: 2px solid #f5f5f5;
 }
 
 #pieMenuForm .menu-button span.emoji {
-    font-size: 32px;  /* Much bigger emoji */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
+    font-size: 28px;
+    margin: 0;
 }
 
-/* Toggle Button */
-.toggle-button {
-    padding: 8px 16px;
-    background-color: #2196f3;
+#pieMenuForm .menu-button .menu-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+#pieMenuForm .menu-button:hover {
+    background: #4361ee;
     color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 14px;
-    z-index: 1000;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    transition: background-color 0.3s;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(67, 97, 238, 0.25);
 }
 
-.toggle-button:hover {
-    background-color: #0d8aee;
+#pieMenuForm .form-buttons {
+    justify-content: center;
+    margin-top: 20px;
 }
 
-.toggle-button:active {
-    background-color: #1976D2;
+#pieMenuForm .cancel {
+    background: #f1f3f9;
+    color: #555;
+    padding: 10px 20px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    width: 100%;
 }
 
-/* Collapsible Tree Styles */
+#pieMenuForm .cancel:hover {
+    background: #e5e8f5;
+}
+
+/* Node styling for visualizations */
 .node rect {
-    transition: fill 0.3s, stroke 0.3s;
+    stroke: #fff;
+    stroke-width: 1px;
+    transition: fill 0.3s ease, stroke-width 0.3s ease;
 }
 
 .node:hover rect {
-    filter: brightness(1.1);
+    stroke-width: 2px;
+    filter: brightness(1.05);
 }
 
 .link {
-    transition: stroke 0.3s;
+    fill: none;
+    stroke: #ccc;
+    stroke-width: 1.5px;
 }
 
-.indicator {
-    pointer-events: none;
-    user-select: none;
-}
-
-.points {
-    pointer-events: none;
-    user-select: none;
-}
-
-/* Controls container for search and toggle */
-.controls-container {
-    position: absolute;
-    bottom: 1%;
-    left: 2.5%;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    z-index: 100;
-}
-
-/* Search container */
-.search-container {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-/* Search input */
-.search-input {
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 14px;
-    width: 120px;
-    background-color: white;
-    transition: border-color 0.3s;
-}
-
-.search-input:focus {
-    border-color: #2196F3;
-    outline: none;
-}
-
-/* Search button */
-.search-button {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 4px;
-    background-color: #2196F3;
-    color: white;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-.search-button:hover {
-    background-color: #1E88E5;
-}
-
-.search-button:active {
-    background-color: #1976D2;
-}
-
-/* Highlighted search results */
-.search-highlight {
-    stroke: #00cd11 !important;
-    stroke-width: 3px !important;
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    .app-header {
+        padding: 10px 15px;
+    }
+    
+    .app-title h1 {
+        font-size: 20px;
+    }
+    
+    .app-subtitle {
+        font-size: 12px;
+        display: none;
+    }
+    
+    .controls-container {
+        flex-direction: column;
+        top: 60px;
+        right: 10px;
+    }
+    
+    .search-input {
+        min-width: 150px;
+    }
+    
+    .node-popup-content {
+        width: 90%;
+        min-width: 280px;
+        padding: 20px;
+    }
+    
+    .toggle-button {
+        font-size: 12px;
+        padding: 8px 12px;
+    }
+    
+    .toggle-button span {
+        display: none;
+    }
 }
