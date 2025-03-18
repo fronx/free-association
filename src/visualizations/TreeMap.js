@@ -215,12 +215,12 @@ export function createTreemap(data, width, height) {
                 return getColorForName(d.data.name);
             })
             .attr("stroke", d => {
-                // Only add special outline for nodes with non-contributor children - now in blue
-                return (d.data.hasDirectContributorChild) ? "#2196f3" : "#fff";
+                // Only add special outline for nodes with non-contribution children - now in blue
+                return (d.data.hasDirectContributionChild) ? "#2196f3" : "#fff";
             })
             .attr("stroke-width", d => {
-                // Only make stroke wider for nodes with non-contributor children
-                return (d.data.hasDirectContributorChild) ? "2" : "2";
+                // Only make stroke wider for nodes with non-contribution children
+                return (d.data.hasDirectContributionChild) ? "2" : "2";
             });
 
         // Add fulfillment indicator rectangle (darker shade)
@@ -548,7 +548,7 @@ export function createTreemap(data, width, height) {
                 if (d === root && d.parent) {
                     console.log('Attempting zoom out from:', d.data.name);
                     zoomout(root);
-                } else if (d !== root && !d.data.isContributor) {  // Check isContributor directly
+                } else if (d !== root && !d.data.isContribution) {  // Check isContribution directly
                     console.log('Attempting zoom in to:', d.data.name);
                     zoomin(d);
                 }
