@@ -1,6 +1,7 @@
 import { TreeMap } from '../visualizations/TreeMap.js';
 import { createPieChart } from '../visualizations/PieChart.js';
 import { addNodeTexts } from './Forms.js';
+import { updateTreemap } from '../visualizations/TreeMap.js';
 
 export function setupEventHandlers(currentView, root) {
     let currentTextIndex = 0;
@@ -34,6 +35,11 @@ export function setupEventHandlers(currentView, root) {
         $(this).next('output').text($(this).val() + '%');
     });
 
+    // Fulfillment slider handler
+    $('#fulfillmentSlider').on('input', function() {
+        $(this).next('output').text($(this).val() + '%');
+    });
+
     // Copy key handler
     $('.copy-key').on('click', function() {
         const publicKey = $('#public-key-text').text();
@@ -51,6 +57,25 @@ export function setupEventHandlers(currentView, root) {
     $('#addNodeForm').on('submit', function(e) {
         e.preventDefault();
         handleFormSubmission($(this), currentView, root);
+    });
+
+    // Fulfillment form submission
+    $('#setFulfillmentForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        // Get the fulfillment value from the slider
+        const fulfillmentValue = $('#fulfillmentSlider').val() / 100;
+        
+        // Set the fulfillment value on the node
+        if (window.selectedNodeForFulfillment) {
+            window.selectedNodeForFulfillment.fulfillment = fulfillmentValue;
+            
+            // Close the form
+            $('.node-popup').removeClass('active');
+            
+            // Update the visualization
+            updateTreemap(root);
+        }
     });
 }
 

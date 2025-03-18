@@ -146,6 +146,40 @@ export function createTreemap(data, width, height) {
                 return y(d.y1) - y(d.y0);
             });
 
+        // Ensure sliders always stay in top left and resize appropriately
+        group.selectAll(".fulfillment-slider-group")
+            .attr("transform", "translate(10, 15)")
+            .each(function(d) {
+                if (d === root) return; // Skip root node
+                
+                const sliderGroup = d3.select(this);
+                const rectWidth = x(d.x1) - x(d.x0);
+                
+                // Calculate appropriate slider width for current rectangle size
+                const sliderWidth = Math.min(Math.max(rectWidth * 0.3, 30), rectWidth - 10);
+                
+                // Update slider background outline
+                sliderGroup.select("rect.slider-bg-outline")
+                    .attr("width", sliderWidth + 4);
+                    
+                // Update slider background
+                sliderGroup.select("rect.slider-bg")
+                    .attr("width", sliderWidth);
+                    
+                // Get current fulfillment value
+                const currentValue = d.data._manualFulfillment !== null 
+                    ? d.data._manualFulfillment 
+                    : d.data.fulfilled;
+                    
+                // Update slider fill
+                sliderGroup.select("rect.slider-fill")
+                    .attr("width", sliderWidth * currentValue);
+                    
+                // Update handle position
+                sliderGroup.select("circle.slider-handle")
+                    .attr("cx", sliderWidth * currentValue);
+            });
+
         // Update type indicators along with other elements
         group.selectAll(".type-indicators")
             .attr("transform", d => {
@@ -278,6 +312,163 @@ export function createTreemap(data, width, height) {
                 return "1.2em";  // Standard line spacing for subsequent lines
             })
             .text(d => d);
+            
+        // Add sliders to all nodes that can have them
+        node.filter(d => {
+            // Skip root node and nodes with no children
+            if (d === root || d.data.children.size === 0) return false;
+            
+            // Add sliders to nodes that have at least one direct contribution child
+            return d.data.hasDirectContributionChild;
+        })
+        .each(function(d) {
+            const nodeGroup = d3.select(this);
+            const rectWidth = x(d.x1) - x(d.x0);
+            const rectHeight = y(d.y1) - y(d.y0);
+            
+            // Fixed position in top left corner - no size constraints
+            // Removed the check: if (rectWidth < 60 || rectHeight < 40) return;
+            
+            // Set fixed position for the top left corner
+            const sliderY = 15; // Fixed distance from top
+            
+            // Calculate slider width based on available space
+            // Ensure it's not too wide for very small rectangles
+            const sliderWidth = Math.min(Math.max(rectWidth * 0.3, 30), rectWidth - 10);
+            
+            // Create a group for slider elements positioned in the top left corner
+            const sliderGroup = nodeGroup.append("g")
+                .attr("class", "fulfillment-slider-group")
+                .attr("transform", `translate(10, ${sliderY})`); // Fixed to top left with padding
+            
+            // Add a white background behind the slider for better visibility
+            sliderGroup.append("rect")
+                .attr("class", "slider-bg-outline")
+                .attr("x", -2)
+                .attr("y", -2)
+                .attr("width", sliderWidth + 4)
+                .attr("height", 10)
+                .attr("rx", 5)
+                .attr("fill", "rgba(255, 255, 255, 0.8)");
+                
+            // Add slider background
+            sliderGroup.append("rect")
+                .attr("class", "slider-bg")
+                .attr("x", 0)
+                .attr("y", 0)
+                .attr("width", sliderWidth)
+                .attr("height", 6)
+                .attr("rx", 3)
+                .attr("fill", "#ddd");
+            
+            // Get current fulfillment value
+            const currentValue = d.data._manualFulfillment !== null 
+                ? d.data._manualFulfillment 
+                : d.data.fulfilled;
+            
+            // Add slider filled portion to show current value
+            sliderGroup.append("rect")
+                .attr("class", "slider-fill")
+                .attr("x", 0)
+                .attr("y", 0)
+                .attr("width", sliderWidth * currentValue)
+                .attr("height", 6)
+                .attr("rx", 3)
+                .attr("fill", "#2196f3")
+                .attr("pointer-events", "none");
+            
+            // Update the node tooltip to match the current fulfillment value
+            nodeGroup.select("title")
+                .text(`${name(d)}\nFulfillment: ${Math.round(currentValue * 100)}%`);
+                
+            // Add slider handle
+            const handle = sliderGroup.append("circle")
+                .attr("class", "slider-handle")
+                .attr("cx", sliderWidth * currentValue)
+                .attr("cy", 3)
+                .attr("r", 7)
+                .attr("fill", "#2196f3")
+                .attr("cursor", "pointer")
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 2);
+                
+            // Add title (tooltip) to handle
+            handle.append("title")
+                .text(`Fulfillment: ${Math.round(currentValue * 100)}%`);
+            
+            // Add drag behavior to handle
+            handle.call(d3.drag()
+                .on("drag", function(event) {
+                    // Constrain to slider width
+                    const newX = Math.max(0, Math.min(sliderWidth, event.x));
+                    // Update handle position
+                    d3.select(this).attr("cx", newX);
+                    // Calculate fulfillment value (0-1)
+                    const fulfillmentValue = newX / sliderWidth;
+                    
+                    // Update slider fill to match handle position
+                    sliderGroup.select("rect.slider-fill")
+                        .attr("width", newX);
+                    
+                    // Update the node tooltip
+                    nodeGroup.select("title")
+                        .text(`${name(d)}\nFulfillment: ${Math.round(fulfillmentValue * 100)}%`);
+                        
+                    // Update the handle tooltip
+                    d3.select(this).select("title")
+                        .text(`Fulfillment: ${Math.round(fulfillmentValue * 100)}%`);
+                    
+                    // Set the fulfillment value on the node
+                    d.data.fulfillment = fulfillmentValue;
+                    
+                    // Update fulfillment indicator rectangle
+                    nodeGroup.select("rect.fulfillment-indicator")
+                        .attr("width", () => {
+                            const fullWidth = x(d.x1) - x(d.x0);
+                            return fullWidth * fulfillmentValue;
+                        });
+                })
+                .on("end", function() {
+                    // After drag ends, update the entire visualization to reflect changes
+                    // We do this after drag ends to avoid constant updates during dragging
+                    if (growthInterval) {
+                        clearInterval(growthInterval);
+                        growthInterval = null;
+                    }
+                    isGrowing = false;
+                    
+                    // Get the current value from the handle position
+                    const currentX = parseFloat(d3.select(this).attr("cx"));
+                    const finalFulfillmentValue = currentX / sliderWidth;
+                    
+                    // Ensure the fulfilllment value is set properly before recomputing
+                    d.data.fulfillment = finalFulfillmentValue;
+                    
+                    // Update both tooltips to match the final value
+                    nodeGroup.select("title")
+                        .text(`${name(d)}\nFulfillment: ${Math.round(finalFulfillmentValue * 100)}%`);
+                        
+                    d3.select(this).select("title")
+                        .text(`Fulfillment: ${Math.round(finalFulfillmentValue * 100)}%`);
+                    
+                    // Update the slider fill
+                    sliderGroup.select("rect.slider-fill")
+                        .attr("width", currentX);
+                    
+                    // Recompute hierarchy and update
+                    hierarchy.sum(node => node.data.points)
+                        .each(node => {
+                            node.value = node.data.points || 0;
+                        });
+                    
+                    // Apply treemap
+                    const treemap = d3.treemap().tile(tile);
+                    treemap(hierarchy);
+                    
+                    // Force update the visualization
+                    position(group, currentView);
+                }));
+        });
   
       group.call(position, root);
 
@@ -498,6 +689,40 @@ export function createTreemap(data, width, height) {
                                         return calculateFontSize(d, rectWidth, rectHeight, root, x, y, currentView) + "px";
                                     });
                                     
+                                // Explicitly reset slider group positions to top left
+                                nodes.select(".fulfillment-slider-group")
+                                    .attr("transform", "translate(10, 15)");
+                                
+                                // Recalculate slider widths based on new node dimensions
+                                nodes.select(".fulfillment-slider-group").each(function(d) {
+                                    const sliderGroup = d3.select(this);
+                                    const rectWidth = x(d.x1) - x(d.x0);
+                                    
+                                    // Calculate appropriate slider width for new rectangle size
+                                    const sliderWidth = Math.min(Math.max(rectWidth * 0.3, 30), rectWidth - 10);
+                                    
+                                    // Update slider background outline
+                                    sliderGroup.select("rect.slider-bg-outline")
+                                        .attr("width", sliderWidth + 4);
+                                        
+                                    // Update slider background
+                                    sliderGroup.select("rect.slider-bg")
+                                        .attr("width", sliderWidth);
+                                        
+                                    // Get current fulfillment value
+                                    const currentValue = d.data._manualFulfillment !== null 
+                                        ? d.data._manualFulfillment 
+                                        : d.data.fulfilled;
+                                        
+                                    // Update slider fill
+                                    sliderGroup.select("rect.slider-fill")
+                                        .attr("width", sliderWidth * currentValue);
+                                        
+                                    // Update handle position
+                                    sliderGroup.select("circle.slider-handle")
+                                        .attr("cx", sliderWidth * currentValue);
+                                });
+                                
                                 // Add type indicator updates here
                                 nodes.select(".type-indicators")
                                     .transition()
@@ -642,6 +867,10 @@ export function createTreemap(data, width, height) {
         
         const group1 = group = svg.append("g").call(render, d);
         
+        // Reset slider positions immediately for new group to prevent animation weirdness
+        group1.selectAll(".fulfillment-slider-group")
+            .attr("transform", "translate(10, 15)");
+            
         svg.transition()
             .duration(750)
             .call(t => group0.transition(t).remove()
@@ -662,6 +891,10 @@ export function createTreemap(data, width, height) {
         
         const group1 = group = svg.insert("g", "*").call(render, d.parent);
         
+        // Reset slider positions immediately for new group to prevent animation weirdness 
+        group1.selectAll(".fulfillment-slider-group")
+            .attr("transform", "translate(10, 15)");
+            
         svg.transition()
             .duration(750)
             .call(t => group0.transition(t).remove()
@@ -929,4 +1162,19 @@ export function createTreemap(data, width, height) {
                 .classed('search-highlight', false);
         }
     };
+}
+
+// Export the update function to allow external updates
+export function updateTreemap(root) {
+    // Re-render the treemap
+    const container = document.getElementById('treemap-container');
+    
+    // Clear the container
+    container.innerHTML = '';
+    
+    // Create a new treemap
+    const treemap = createTreemap(root.data, container.clientWidth, container.clientHeight);
+    
+    // Append the new treemap to the container
+    container.appendChild(treemap);
 }
