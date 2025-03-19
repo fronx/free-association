@@ -18,6 +18,8 @@ export class App {
                 name: node.name,
                 points: node.points,
                 types: node.types,
+                fulfilled: node.fulfilled,
+                desire: node.desire,
             };
             
             // Include children if they exist

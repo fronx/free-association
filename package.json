@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "dependencies": {
     "d3": "^7.9.0",
-    "jsog": "^1.0.7",
-    "gun": "^0.2020.1240"
+    "gun": "^0.2020.1240",
+    "jsog": "^1.0.7"
   },
   "devDependencies": {
     "http-server": "^14.1.1",

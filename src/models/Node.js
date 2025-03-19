@@ -5,7 +5,7 @@ export class Node {
       this.parent = parent;
       this.points = 0;
       this.children = new Map();
-      this._manualFulfillment = null;
+      this.manualFulfillment = null;
       
       this.types = types;
       // Map of type -> Set of instances
@@ -194,12 +194,12 @@ export class Node {
 
       // If fulfillment was manually set and node has contributor children
       if (
-        this._manualFulfillment !== null &&
+        this.manualFulfillment !== null &&
         this.hasDirectContributionChild
       ) {
         // If we only have contributor children, return manual fulfillment
         if (!this.hasNonContributionChild) {
-          return this._manualFulfillment;
+          return this.manualFulfillment;
         }
 
         // For hybrid case: combine manual fulfillment for contributor children
@@ -210,7 +210,7 @@ export class Node {
           this.nonContributionChildrenFulfillment;
 
         return (
-          this._manualFulfillment * contributionChildrenWeight +
+          this.manualFulfillment * contributionChildrenWeight +
           nonContributionFulfillment * (1 - contributionChildrenWeight)
         );
       }
@@ -235,12 +235,12 @@ export class Node {
         if (value < 0 || value > 1) {
           throw new Error('Fulfillment must be between 0 and 1');
         }
-        this._manualFulfillment = value;
+        this.manualFulfillment = value;
         return this;
       };
   
     clearFulfillment() {
-      this._manualFulfillment = null;
+      this.manualFulfillment = null;
         return this;
     };
   
