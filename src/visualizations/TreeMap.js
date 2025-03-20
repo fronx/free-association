@@ -64,7 +64,8 @@ export function createTreemap(data, width, height) {
         return d3.rgb(
             Math.max(0, rgb.r - rgb.r * factor),
             Math.max(0, rgb.g - rgb.g * factor),
-            Math.max(0, rgb.b - rgb.b * factor)
+            Math.max(0, rgb.b - rgb.b * factor),
+            0.35  // Add 35% opacity to allow text to be visible
         );
     }
 
@@ -170,6 +171,11 @@ export function createTreemap(data, width, height) {
                 const rectWidth = d === root ? width : x(d.x1) - x(d.x0);
                 return `translate(${rectWidth - 10}, 10)`;
             });
+            
+        // Ensure fulfillment indicators and handles are always on top of text
+        // This needs to happen at the end of every position/update call
+        group.selectAll("rect.fulfillment-indicator").raise();
+        group.selectAll("rect.fulfillment-handle").raise();
     }
   
     function render(group, root) {
@@ -365,6 +371,10 @@ export function createTreemap(data, width, height) {
                     // Force update the visualization
                     position(group, currentView);
                 });
+            
+            // After adding drag behavior, raise these elements to ensure they're on top of text
+            nodeGroup.select("rect.fulfillment-indicator").raise();
+            handle.raise();
             
             // Add the same growth/shrink handler to the window shade and handle
             // This ensures growth/shrink works even when window shade is at 100%
@@ -686,10 +696,9 @@ export function createTreemap(data, width, height) {
                                         return `translate(${rectWidth - 10}, 10)`;
                                     });
 
-                                // console.log("\nFinal values:");
-                                // console.log("Node points:", d.data.points);
-                                // console.log("Node value:", d.value);
-                                // console.log("Hierarchy value:", hierarchy.value);
+                                // Make sure indicators and handles stay on top during animations
+                                nodes.select("rect.fulfillment-indicator").raise();
+                                nodes.select("rect.fulfillment-handle").raise();
                             }, GROWTH_TICK);
                         }
                     }, GROWTH_DELAY);
