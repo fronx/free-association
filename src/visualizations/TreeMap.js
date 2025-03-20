@@ -368,8 +368,10 @@ export function createTreemap(data, width, height) {
                     const treemap = d3.treemap().tile(tile);
                     treemap(hierarchy);
                     
-                    // Force update the visualization
-                    position(group, currentView);
+                    // Force a full refresh of the current view, similar to navigation
+                    const oldGroup = group;
+                    group = svg.append("g").call(render, currentView);
+                    oldGroup.remove();
                 });
             
             // After adding drag behavior, raise these elements to ensure they're on top of text
