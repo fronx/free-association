@@ -327,10 +327,7 @@ export class TreeNode {
       // Update in Gun using direct approach
       this.gunRef.get('points').put(points);
       
-      // Only update pie chart if not in an active touch/growth interaction
-      if (!(this.app as any).isGrowingActive) {
-        this.app.pieUpdateNeeded = true;
-      }
+      this.app.pieUpdateNeeded = true;
     }
   
     get totalChildPoints() {

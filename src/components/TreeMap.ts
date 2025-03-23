@@ -148,8 +148,6 @@ export function createTreemap(data: TreeNode, width: number, height: number): Tr
 
         // Update type tags container position
         group.selectAll(".type-tags-container")
-            .style("opacity", () => (window as any).app.isGrowingActive ? 0 : 1) // Hide during growing
-            .style("transition", "opacity 0.15s ease") // Add smooth transition
             .attr("transform", d => {
                 if (!d || typeof d.x0 === 'undefined') return '';
                 const rectWidth = d === root ? width : x(d.x1) - x(d.x0);
@@ -252,8 +250,6 @@ export function createTreemap(data: TreeNode, width: number, height: number): Tr
     // Replace type circles container with tag pills container and add tag button
     const typeContainer = node.append("g")
         .attr("class", "type-tags-container")
-        .style("opacity", () => (window as any).app.isGrowingActive ? 0 : 1) // Hide during growing
-        .style("transition", "opacity 0.15s ease") // Add smooth transition
         .attr("transform", d => {
             const rectWidth = d === root ? width : x(d.x1) - x(d.x0);
             const rectHeight = d === root ? 50 : y(d.y1) - y(d.y0);
@@ -714,26 +710,12 @@ export function createTreemap(data: TreeNode, width: number, height: number): Tr
                         // Only start growing/shrinking if still touching the same node
                         if (isTouching && activeNode === d) {
                             isGrowing = true;
-                            // Set the app's growing active flag
-                            (window as any).app.isGrowingActive = true;
-                            
-                            // Hide type tags immediately when growing starts
-                            group.selectAll(".type-tags-container")
-                                .style("opacity", 0);
-                            
                             growthInterval = setInterval(() => {
                                 // Only continue if still touching
                                 if (!isTouching) {
                                     clearInterval(growthInterval);
                                     isGrowing = false;
                                     growthInterval = null;
-                                    // Clear the app's growing active flag
-                                    (window as any).app.isGrowingActive = false;
-                                    
-                                    // Ensure type tags are shown when click finishes
-                                    group.selectAll(".type-tags-container")
-                                        .style("opacity", 1);
-                                    
                                     return;
                                 }
                                 
@@ -858,13 +840,6 @@ export function createTreemap(data: TreeNode, width: number, height: number): Tr
                 if (growthInterval) clearInterval(growthInterval);
                 growthInterval = null;
                 isGrowing = false;
-                
-                // Clear the app's growing active flag
-                (window as any).app.isGrowingActive = false;
-                
-                // Ensure type tags are shown when click finishes
-                group.selectAll(".type-tags-container")
-                    .style("opacity", 1);
             }
         }, { passive: true })
         .on("click touchend", (event, d) => {
@@ -896,13 +871,6 @@ export function createTreemap(data: TreeNode, width: number, height: number): Tr
                 isTouching = false;
                 activeNode = null;
                 isGrowing = false;
-                
-                // Ensure app's growing active flag is cleared
-                (window as any).app.isGrowingActive = false;
-                
-                // Ensure type tags are shown when click finishes
-                group.selectAll(".type-tags-container")
-                    .style("opacity", 1);
             }
         }, { passive: false });
 

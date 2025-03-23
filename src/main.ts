@@ -9,44 +9,6 @@ import { Bitmap } from '@paulmillr/qr';
 
 let app: App | undefined;
 
-// Initialize function that handles recall and app initialization
-async function initializeApp() {
-    console.log('Attempting to recall user session');
-    await GunX.recallUser();
-    
-    // Check if the user is authenticated after recall
-    if (GunX.user.is) {
-        console.log('User session recalled successfully', GunX.user.is.pub);
-        const authContainer = document.getElementById('auth-container');
-        if (authContainer) {
-            authContainer.classList.add('hidden');
-            console.log('Auth container hidden due to successful recall');
-        }
-        
-        try {
-            app = new App();
-            await app.initialize();
-            console.log('App initialized after session recall:', app);
-            
-            // Only enable UI interactions after app is fully initialized
-            setupUIHandlers();
-        } catch (error) {
-            console.error('Failed to initialize app after session recall:', error);
-            // Show auth container if app initialization fails
-            if (authContainer) {
-                authContainer.classList.remove('hidden');
-            }
-        }
-    } else {
-        console.log('No user session found, showing login form');
-        // Show auth container if no user session
-        const authContainer = document.getElementById('auth-container');
-        if (authContainer) {
-            authContainer.classList.remove('hidden');
-        }
-    }
-}
-
 async function handleAuth(event: Event) {
     event.preventDefault();
     console.log('Auth handler started');
@@ -58,8 +20,6 @@ async function handleAuth(event: Event) {
         console.log('Login successful');
     } catch(error) {
         console.log('Auth failed:', error);
-        alert('Authentication failed. Please try again.');
-        return;
     }
 
     const authContainer = document.getElementById('auth-container');
@@ -246,16 +206,6 @@ function setupUIHandlers() {
         $(this).addClass('active');
         $('.tab-content').hide();
         $(`#${tabId}`).show();
-        
-        // If discover tab is clicked, automatically trigger user discovery
-        if (tabId === 'discover-tab') {
-            $('#discover-users-tab').trigger('click');
-        }
-    });
-
-    // Discover users from tab button
-    $('#discover-users-tab').on('click', function() {
-        $('#discover-users').trigger('click');
     });
 
     // Start camera for QR scanning
@@ -301,151 +251,144 @@ function setupUIHandlers() {
                                 $('#manual-key').val(result);
                             }
                         } catch (error) {
-                            // No QR code found, continue scanning
+                            // No QR code found yet, continue scanning
                         }
                     }
-                }, 500);
+                }, 200);
             })
             .catch(error => {
-                console.error('Camera access error:', error);
-                scanResult.textContent = 'Camera access denied or error occurred';
+                console.error('Error accessing camera:', error);
+                scanResult.textContent = 'Error: Could not access camera. Please enter the key manually.';
             });
     }
 
     function stopQRScanner() {
+        if (scanInterval) {
+            clearInterval(scanInterval);
+            scanInterval = null;
+        }
+        
         if (videoStream) {
             videoStream.getTracks().forEach(track => track.stop());
             videoStream = null;
         }
-        
-        if (scanInterval !== null) {
-            window.clearInterval(scanInterval);
-            scanInterval = null;
-        }
     }
 
-    // Connect to peer after scan
+    // Handle connecting to peer
     $('#connect-peer').on('click', async function() {
-        const peerKey = $('#manual-key').val() as string;
-        if (!peerKey) {
-            alert('Please enter or scan a public key');
-            return;
-        }
-        
-        if (!app) {
-            alert('App not initialized yet');
-            return;
-        }
-        
-        const result = await app.connectToPeer(peerKey);
-        if (result) {
-            alert('Connected successfully!');
-            $('.node-popup').removeClass('active');
-        } else {
-            alert('Failed to connect to peer');
-        }
-    });
-
-    // Connect to peer after scan
-    $('#show-connections').on('click', function() {
-        if (!app) {
-            alert('App not initialized yet');
-            return;
-        }
-        
-        const peers = app.listConnectedPeers();
-        const peerList = $('#user-list');
-        
-        if (peers.length === 0) {
-            peerList.html('<li>No connected peers</li>');
-            return;
-        }
-        
-        const peerHtml = peers.map(peer => `
-            <li>
-                <div>${peer.name}</div>
-                <button class="disconnect-peer" data-id="${peer.id}">Disconnect</button>
-            </li>
-        `).join('');
-        
-        peerList.html(peerHtml);
-        
-        // Add disconnect handlers
-        $('.disconnect-peer').on('click', function() {
-            const peerId = $(this).data('id');
-            app?.disconnectPeer(peerId);
+        const manualKey = $('#manual-key').val() as string;
+        if (manualKey) {
+            // Replace the TODO with actual connection logic
+            console.log('Connecting to peer with key:', manualKey);
             
-            // Update the list after disconnection
-            $('#show-connections').click();
-        });
-    });
-
-    // Discover users button handler
-    $('#discover-users').on('click', async function() {
-        if (!app) {
-            alert('App not initialized yet');
-            return;
-        }
-        
-        const peerList = $('#user-list');
-        peerList.html('<li>Discovering users...</li>');
-        
-        const users = await app.discoverUsers();
-        
-        if (users.length === 0) {
-            peerList.html('<li>No users found</li>');
-            return;
-        }
-        
-        const userHtml = users.map(user => {
-            const lastSeenDate = user.lastSeen ? new Date(user.lastSeen).toLocaleString() : 'Unknown';
-            return `
-                <li>
-                    <div>${user.name}</div>
-                    <div>Last seen: ${lastSeenDate}</div>
-                    <button class="connect-to-user" data-id="${user.id}">Connect</button>
-                </li>
-            `;
-        }).join('');
-        
-        peerList.html(userHtml);
-        
-        // Add connect handlers
-        $('.connect-to-user').on('click', async function() {
-            const userId = $(this).data('id');
-            const success = await app?.connectToPeer(userId);
+            if (!app) {
+                alert('App not initialized yet');
+                return;
+            }
+            
+            const success = await app.connectToPeer(manualKey);
             
             if (success) {
-                alert(`Connected to ${$(this).parent().find('div').first().text()}`);
-                $('.node-popup').removeClass('active');
+                alert(`Connected to peer with key: ${manualKey}`);
+                // You might want to add the peer to a list in the UI
             } else {
-                alert('Failed to connect to user');
+                alert(`Failed to connect to peer with key: ${manualKey}`);
             }
-        });
+            
+            $('.node-popup').removeClass('active');
+        } else {
+            alert('Please scan a QR code or enter a public key');
+        }
     });
 
-    // Logout button handler
-    $('#logout').on('click', function() {
-        GunX.logout();
-        location.reload(); // Refresh the page to show login screen
+    // Add discover users functionality
+    $('.discover-users').on('click', async function() {
+        if (!app) {
+            alert('App not initialized yet');
+            return;
+        }
+
+        // Show loading state
+        $('#user-list').html('<li>Searching for users...</li>');
+        
+        try {
+            const users = await app.discoverUsers();
+            
+            if (users.length === 0) {
+                $('#user-list').html('<li>No users found</li>');
+                return;
+            }
+            
+            // Format and display the list of users
+            const listHtml = users.map(user => {
+                const lastSeenDate = user.lastSeen ? new Date(user.lastSeen).toLocaleString() : 'Unknown';
+                return `
+                    <li>
+                        <div>${user.name}</div>
+                        <div>Last seen: ${lastSeenDate}</div>
+                        <button class="connect-to-user" data-id="${user.id}">Connect</button>
+                    </li>
+                `;
+            }).join('');
+            
+            $('#user-list').html(listHtml);
+            
+            // Add click handlers for the connect buttons
+            $('.connect-to-user').on('click', async function() {
+                const userId = $(this).data('id');
+                const success = await app.connectToPeer(userId);
+                
+                if (success) {
+                    alert(`Connected to ${$(this).parent().find('div').first().text()}`);
+                    $('.node-popup').removeClass('active');
+                } else {
+                    alert('Failed to connect to user');
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error discovering users:', error);
+            $('#user-list').html('<li>Error discovering users</li>');
+        }
+    });
+
+    // Stop scanner when form is closed
+    $('#scanQRForm .cancel').on('click', function() {
+        stopQRScanner();
+    });
+
+    // Add tab button in main.ts
+    $('.tab-button[data-tab="discover-tab"]').on('click', function() {
+        $('.discover-users').trigger('click');
     });
 }
 
-// Wait for DOM to be fully loaded before attaching event listeners
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM fully loaded');
-    
-    // Try to initialize the app with recalled user session
-    initializeApp();
-    
-    // Attach auth form submission event
+// Initial setup for already logged in users
+if (!GunX.user.is) {
+    const authContainer = document.getElementById('auth-container');
     const authForm = document.getElementById('auth-form');
-    if (authForm) {
+    if (authContainer && authForm) {
+        authContainer.classList.remove('hidden');
         authForm.addEventListener('submit', handleAuth);
-    } else {
-        console.error('Auth form not found in DOM');
     }
-});
+} else {
+    const authContainer = document.getElementById('auth-container');
+    if (authContainer) {
+        authContainer.classList.add('hidden');
+    }
+    // Handle already logged in case
+    (async () => {
+        try {
+            if (app?.root) {
+                await initializeExampleData(app.root);
+                console.log('App initialized for logged in user:', app);
+                setupUIHandlers();
+            }
+        } catch (error) {
+            console.error('Failed to initialize app for logged in user:', error);
+        }
+    })();
+}
 
 // Add this to your existing script section
 const messageInput = document.getElementById('message-input');

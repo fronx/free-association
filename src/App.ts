@@ -37,28 +37,16 @@ export class App {
     gunRef: any = null
     // Map to store peer trees indexed by their public key
     peerTrees: Map<string, TreeNode> = new Map();
-    // Flag to track active growing/shrinking interactions
-    isGrowingActive: boolean = false;
     
     constructor() {
         console.log('[App] Constructor started');
-        
-        // More robust authentication check
-        if (!user.is || !user.is.pub || !user.is.alias) {
-            console.error('[App] User not properly authenticated!', user.is);
-            throw new Error('Must be properly authenticated before initializing App');
+        if (!user.is) {
+            console.error('[App] User not logged in!');
+            throw new Error('Must be logged in before initializing App');
         }
-        
-        this.name = user.is.alias as string || 'Unknown User';
-        this.rootId = user.is.pub as string;
-        
-        // Ensure we have valid data
-        if (!this.rootId) {
-            console.error('[App] Missing user public key!');
-            throw new Error('User public key is missing or invalid');
-        }
-        
-        this.gunRef = gun.get('users').get(this.rootId);
+        this.name = user.is.alias as string
+        this.rootId = user.is.pub as string
+        this.gunRef = gun.get('users').get(this.rootId)
         console.log('[App] User information:', { name: this.name, rootId: this.rootId });
 
         (window as any).app = this;
@@ -186,11 +174,6 @@ export class App {
             // Set up a reactive update system that will respond to changes
             console.log('[App] Setting up reactive update system');
             this.updateInterval = setInterval(() => {
-                // Skip updates during active growth operations
-                if (this.isGrowingActive) {
-                    return;
-                }
-                
                 if (this._updateNeeded) {
                     console.log('[App] Update needed, refreshing treemap');
                     this.updateTreeMap();
@@ -305,12 +288,6 @@ export class App {
             return;
         }
         
-        // Skip updates during active growth operations
-        if (this.isGrowingActive) {
-            console.log('Skipping visualization updates during active growth operation');
-            return;
-        }
-        
         try {
             console.log('Starting visualization update');
             
@@ -333,13 +310,6 @@ export class App {
 
     updateTreeMap() {
         console.log('updateTreeMap called');
-        
-        // Skip complete rebuild during active growth operations
-        if (this.isGrowingActive) {
-            console.log('Skipping treemap rebuild during active growth operation');
-            return;
-        }
-        
         const container = document.getElementById('treemap-container');
         if (container && this.treemap && this.rootNode) {
             this.treemap.destroy();

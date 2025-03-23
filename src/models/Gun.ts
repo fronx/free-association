@@ -17,16 +17,7 @@ export let gun = Gun({
 
 // Get authenticated user space
 export const user = gun.user();
-
-// Modified to return a Promise so we can wait for recall to complete
-export const recallUser = (): Promise<void> => {
-  return new Promise((resolve) => {
-    user.recall({ sessionStorage: true }, () => {
-      console.log('User recall completed');
-      resolve();
-    });
-  });
-};
+user.recall({sessionStorage: true}) // Stay logged in across sessions
 
 /*
 var SEA = Gun.SEA;
