@@ -11,10 +11,6 @@ export function createTreemap(data, width, height) {
     const GROWTH_DELAY = 500;
     let isGrowing = false;
     const SHRINK_RATE = (d) => d.data.points * -0.05; // Negative growth rate for shrinking
-    let draggedNode = null; // Track currently dragged node
-    let dragTarget = null; // Track the potential drop target
-    let mouseDownPosition = null;
-    let dragThreshold = 5; // pixels of movement required to start dragging
 
     // Helper functions
     const uid = (function() {
@@ -174,8 +170,13 @@ export function createTreemap(data, width, height) {
             
         // Ensure fulfillment indicators and handles are always on top of text
         // This needs to happen at the end of every position/update call
-        group.selectAll("rect.fulfillment-indicator").raise();
-        group.selectAll("rect.fulfillment-handle").raise();
+        group.selectAll("rect.fulfillment-indicator").each(function() {
+            this.parentNode.appendChild(this);
+        });
+        
+        group.selectAll("rect.fulfillment-handle").each(function() {
+            this.parentNode.appendChild(this);
+        });
     }
   
     function render(group, root) {
@@ -204,21 +205,9 @@ export function createTreemap(data, width, height) {
           .filter(d => d === root || d.value > 0)
           .attr("cursor", "pointer")
           .on("click", (event, d) => {
-              if (d === root) return;
+              // Prevent default node click behavior - we'll handle all navigation in the touchend handler
               event.stopPropagation();
-              zoomin(d);
-          })
-          .call(d3.drag()
-              .on("start", dragStarted)
-              .on("drag", dragging)
-              .on("end", dragEnded)
-              .filter(event => {
-                  // Only enable drag on left mouse button (not right click which we use for shrinking)
-                  // AND only if there's actual mouse movement (dx or dy not zero)
-                  // This prevents drag from interfering with grow/shrink on click-and-hold
-                  return event.button === 0 && 
-                         (Math.abs(event.dx) > 3 || Math.abs(event.dy) > 3);
-              }));
+          });
 
         node.append("title")
             .text(d => {
@@ -234,14 +223,16 @@ export function createTreemap(data, width, height) {
             .attr("id", d => (d.leafUid = uid("leaf")).id)
             .attr("class", "node-rect")  // Add a class for selection
             .attr("fill", d => {
-                if (d === root) return "#fff";
+                if (d === root) return "#f8f9fa";  // Lighter background for root
                 return getColorForName(d.data.name);
             })
             .attr("stroke", d => {
-                // Only add special outline for nodes with non-contribution children - now in blue
+                if (d === root && d.parent) return "#007bff";  // Blue outline for back navigation
+                // Only add special outline for nodes with non-contribution children
                 return (d.data.hasDirectContributionChild) ? "#2196f3" : "#fff";
             })
             .attr("stroke-width", d => {
+                if (d === root && d.parent) return "3";  // Thicker stroke for root with parent
                 // Only make stroke wider for nodes with non-contribution children
                 return (d.data.hasDirectContributionChild) ? "2" : "2";
             });
@@ -276,15 +267,17 @@ export function createTreemap(data, width, height) {
             const rectHeight = y(d.y1) - y(d.y0);
             
             // Get current fulfillment value
-            const currentValue = d.data._manualFulfillment !== null 
+            const currentValue = d.data._manualFulfillment !== null && d.data._manualFulfillment !== undefined
                 ? d.data._manualFulfillment 
-                : d.data.fulfilled;
+                : (d.data.fulfilled !== undefined ? d.data.fulfilled : 0);
             
             // Get the fulfillment indicator rectangle
             const indicator = nodeGroup.select("rect.fulfillment-indicator");
             
             // Calculate current indicator width
-            const indicatorWidth = rectWidth * currentValue;
+            const indicatorWidth = !isNaN(rectWidth) && !isNaN(currentValue) 
+                ? rectWidth * currentValue 
+                : 0;
             
             // Add a handle that appears at the right edge of the indicator
             const handle = nodeGroup.append("rect")
@@ -375,8 +368,12 @@ export function createTreemap(data, width, height) {
                 });
             
             // After adding drag behavior, raise these elements to ensure they're on top of text
-            nodeGroup.select("rect.fulfillment-indicator").raise();
-            handle.raise();
+            nodeGroup.select("rect.fulfillment-indicator").each(function() {
+                this.parentNode.appendChild(this);
+            });
+            handle.each(function() {
+                this.parentNode.appendChild(this);
+            });
             
             // Add the same growth/shrink handler to the window shade and handle
             // This ensures growth/shrink works even when window shade is at 100%
@@ -699,8 +696,12 @@ export function createTreemap(data, width, height) {
                                     });
 
                                 // Make sure indicators and handles stay on top during animations
-                                nodes.select("rect.fulfillment-indicator").raise();
-                                nodes.select("rect.fulfillment-handle").raise();
+                                nodes.select("rect.fulfillment-indicator").each(function() {
+                                    this.parentNode.appendChild(this);
+                                });
+                                nodes.select("rect.fulfillment-handle").each(function() {
+                                    this.parentNode.appendChild(this);
+                                });
                             }, GROWTH_TICK);
                         }
                     }, GROWTH_DELAY);
@@ -726,33 +727,25 @@ export function createTreemap(data, width, height) {
         .on("click touchend", (event, d) => {
             event.preventDefault();
             
-            const touchDuration = Date.now() - touchStartTime;
-            console.log('Click detected on:', d.data.name);
-            console.log('Is root?', d === root);
-            console.log('Has parent?', d.parent ? 'yes' : 'no');
-            console.log('Touch duration:', touchDuration);
-            console.log('Is growing?', isGrowing);
+            // Simple logging for debugging
+            console.log('Navigation click on:', d.data.name);
             
-            // Allow navigation (zooming) regardless of tree
-            if (touchDuration < GROWTH_DELAY && !isGrowing) {
-                if (d === root && d.parent) {
-                    console.log('Attempting zoom out from:', d.data.name);
-                    zoomout(root);
-                } else if (d !== root && !d.data.isContribution) {  // Check isContribution directly
-                    console.log('Attempting zoom in to:', d.data.name);
-                    zoomin(d);
-                }
-            } else {
-                console.log('Navigation blocked because:',
-                    touchDuration >= GROWTH_DELAY ? 'touch too long' : 'growing active');
+            // Simplified navigation logic
+            if (d === root && d.parent) {
+                // If we're clicking the root node and it has a parent, zoom out
+                console.log('Zooming out from:', d.data.name);
+                zoomout(root);
+            } else if (d !== root) {
+                // If we're clicking any non-root node, zoom in
+                // (removed the isContribution check which was blocking navigation)
+                console.log('Zooming in to:', d.data.name);
+                zoomin(d);
             }
             
-            // Clear states only if not in contributor tree
-            if (!isInContributorTree()) {
-                isTouching = false;
-                activeNode = null;
-                isGrowing = false;
-            }
+            // Always clear states after navigation
+            isTouching = false;
+            activeNode = null;
+            isGrowing = false;
         });
 
         if (root.data.children.size === 0 && root !== data) {  // Check if view is empty and not root
@@ -819,232 +812,123 @@ export function createTreemap(data, width, height) {
                         .text("🏠");  // Unicode home emoji
                 }
             });
+
+        // Add back indicator for root nodes that have a parent
+        node.filter(d => d === root && d.parent)
+            .append("text")
+            .attr("class", "back-indicator")
+            .attr("x", 15)  // Position near the left edge
+            .attr("y", 25)  // Center vertically in the header
+            .attr("text-anchor", "start")
+            .attr("dominant-baseline", "middle")
+            .attr("font-size", "18px")
+            .attr("fill", "#007bff")
+            .text("← Back");
     }
 
     function zoomin(d) {
         console.log('Zooming in to:', d.data.name);
         currentView = d;
-        const group0 = group.attr("pointer-events", "none");
         
         // Update domains first
         x.domain([d.x0, d.x1]);
         y.domain([d.y0, d.y1]);
         
-        const group1 = group = svg.append("g").call(render, d);
-            
-        svg.transition()
+        // Mark old group for removal and disable interaction
+        const group0 = group.attr("pointer-events", "none");
+        
+        // Create the new group and render
+        const group1 = svg.append("g");
+        group = group1; // Update the global reference
+        render(group1, d);
+        
+        // Simple transitions without chaining or dependencies
+        group0.transition()
             .duration(750)
-            .call(t => group0.transition(t).remove()
-                .call(position, d.parent))
-            .call(t => group1.transition(t)
-                .attrTween("opacity", () => d3.interpolate(0, 1))
-                .call(position, d));
+            .style("opacity", 0)
+            .remove();
+        
+        group1.style("opacity", 0)
+            .transition()
+            .duration(750)
+            .style("opacity", 1)
+            .on("end", function() {
+                // Force a full refresh when transition completes
+                console.log("Zoom transition complete, refreshing view");
+                
+                // Update position once more to ensure everything is in place
+                group1.call(position, d);
+                
+                // Clear and recreate the view if needed
+                if (d.data.children && d.data.children.size === 0) {
+                    console.log("Leaf node detected, forcing complete refresh");
+                    const oldGroup = group;
+                    group = svg.append("g");
+                    render(group, d);
+                    oldGroup.remove();
+                }
+            });
+        
+        // Position update with separate transition
+        group0.call(position, d.parent);
+        group1.call(position, d);
     }
   
     function zoomout(d) {
         console.log('Zooming out from:', d.data.name);
+        
+        // Safety check - ensure parent exists
+        if (!d.parent) {
+            console.log('Already at top level, cannot zoom out further');
+            return;
+        }
+        
         currentView = d.parent;
-        const group0 = group.attr("pointer-events", "none");
         
         // Update domains first
         x.domain([d.parent.x0, d.parent.x1]);
         y.domain([d.parent.y0, d.parent.y1]);
         
-        const group1 = group = svg.insert("g", "*").call(render, d.parent);
-            
-        svg.transition()
+        // Mark old group for removal and disable interaction
+        const group0 = group.attr("pointer-events", "none");
+        
+        // Create the new group and render
+        const group1 = svg.insert("g", "*"); // Insert at beginning to ensure it's below
+        group = group1; // Update the global reference
+        render(group1, d.parent);
+        
+        // Simple transitions without chaining or dependencies
+        group0.transition()
             .duration(750)
-            .call(t => group0.transition(t).remove()
-                .attrTween("opacity", () => d3.interpolate(1, 0))
-                .call(position, d))
-            .call(t => group1.transition(t)
-                .call(position, d.parent));
-    }
-
-    // Add drag handlers
-    function dragStarted(event, d) {
-        // Don't start dragging if growth is already active
-        if (isGrowing) {
-            console.log("Ignoring drag start because growth is active");
-            return;
-        }
+            .style("opacity", 0)
+            .remove();
         
-        // Don't cancel growth immediately - check if there's actual movement first
-        console.log("Potential drag detected on node:", d.data.name);
-        
-        // Save the dragged node, but don't allow dragging the root
-        if (d === root) {
-            console.log("Cannot drag root node");
-            return;
-        }
-        
-        // Don't allow dragging in contributor trees
-        if (isInContributorTree()) {
-            console.log("Cannot drag nodes in contributor trees");
-            return;
-        }
-        
-        // Only start actual dragging if there's real movement
-        // We'll check this in the drag event
-    }
-    
-    function dragging(event, d) {
-        // Only continue with dragging if not currently growing
-        if (isGrowing) {
-            console.log("Ignoring drag because growth is active");
-            return;
-        }
-        
-        // If we haven't set draggedNode yet, this is the first drag event
-        if (!draggedNode) {
-            console.log("Starting real drag with movement");
-            
-            // Now we know it's a real drag, not just a hold - cancel growth
-            if (growthTimeout) {
-                clearTimeout(growthTimeout);
-                growthTimeout = null;
-            }
-            if (growthInterval) {
-                clearInterval(growthInterval);
-                growthInterval = null;
-            }
-            
-            draggedNode = d;
-            
-            // Highlight the node being dragged
-            d3.select(event.sourceEvent.target.parentNode).select("rect")
-                .attr("stroke", "#f39c12")
-                .attr("stroke-width", "3");
-            
-            // Raise the element being dragged to the front
-            d3.select(event.sourceEvent.target.parentNode).raise();
-        }
-        
-        // For treemap, handle differently - just change opacity and highlight
-        d3.select(event.sourceEvent.target.parentNode).attr("opacity", 0.7);
-        
-        // Find potential target node under cursor
-        // Reset previous target highlight if exists
-        if (dragTarget) {
-            d3.selectAll("g")
-                .filter(n => n === dragTarget)
-                .select("rect")
-                .attr("stroke", "#fff");
-        }
-        
-        // Get all nodes and find one under the cursor (except the dragged node and its children)
-        const allNodes = group.selectAll("g").nodes();
-        dragTarget = null;
-        
-        for (const nodeElem of allNodes) {
-            const targetNode = d3.select(nodeElem).datum();
-            if (targetNode === draggedNode || targetNode === root) continue;
-            
-            // Skip if this node is a descendant of the dragged node (can't parent to own child)
-            let isDescendant = false;
-            let temp = targetNode;
-            while (temp) {
-                if (temp === draggedNode) {
-                    isDescendant = true;
-                    break;
-                }
-                if (temp === root) break;
-                temp = temp.parent;
-            }
-            if (isDescendant) continue;
-            
-            // Get node rectangle dimensions
-            const rectElem = d3.select(nodeElem).select("rect").node();
-            if (!rectElem) continue;
-            
-            const rectBounds = rectElem.getBoundingClientRect();
-            const mouseX = event.sourceEvent.clientX;
-            const mouseY = event.sourceEvent.clientY;
-            
-            // Check if mouse is inside the target node's bounds
-            if (mouseX >= rectBounds.left && mouseX <= rectBounds.right &&
-                mouseY >= rectBounds.top && mouseY <= rectBounds.bottom) {
-                dragTarget = targetNode;
+        group1.style("opacity", 0)
+            .transition()
+            .duration(750)
+            .style("opacity", 1)
+            .on("end", function() {
+                // Force a full refresh when transition completes
+                console.log("Zoom out transition complete, refreshing view");
                 
-                // Highlight potential target
-                d3.select(nodeElem).select("rect")
-                    .attr("stroke", "#27ae60")
-                    .attr("stroke-width", "3");
+                // Update position once more to ensure everything is in place
+                group1.call(position, d.parent);
                 
-                break;
-            }
-        }
-    }
-    
-    function dragEnded(event, d) {
-        if (!draggedNode) return;
+                // Ensure event handlers are properly attached
+                console.log("Re-rendering to ensure event handlers");
+                const parentView = d.parent;
+                setTimeout(() => {
+                    // Double-check that the DOM is fully updated
+                    const oldGroup = group;
+                    group = svg.append("g");
+                    render(group, parentView);
+                    oldGroup.remove();
+                }, 50);
+            });
         
-        console.log("Drag ended", draggedNode.data.name);
-        
-        // Reset opacity
-        d3.select(this).attr("opacity", 1);
-        
-        // Remove highlighting
-        d3.select(this).select("rect")
-            .attr("stroke", "#fff")
-            .attr("stroke-width", "1");
-        
-        // Remove target highlighting if any
-        if (dragTarget) {
-            d3.selectAll("g")
-                .filter(n => n === dragTarget)
-                .select("rect")
-                .attr("stroke", "#fff")
-                .attr("stroke-width", "1");
-        }
-        
-        // If we have a valid target and it's different than the current parent
-        if (dragTarget && draggedNode.parent !== dragTarget) {
-            // Get the current parent node
-            const oldParent = draggedNode.parent;
-            
-            console.log(`Reparenting node "${draggedNode.data.name}" from "${oldParent.data.name}" to "${dragTarget.data.name}"`);
-            
-            // 1. Remove the node from its current parent in the data structure
-            const nodeName = draggedNode.data.name;
-            oldParent.data.children.delete(nodeName);
-            
-            // 2. Add it to the new parent
-            if (dragTarget.data.children.has(nodeName)) {
-                console.log(`Warning: Node with name "${nodeName}" already exists as a child of "${dragTarget.data.name}"`);
-            } else {
-                // Add to the new parent's children
-                const childNode = draggedNode.data;
-                childNode.parent = dragTarget.data;
-                dragTarget.data.children.set(nodeName, childNode);
-                
-                console.log("Data structure updated:");
-                console.log("- Old parent's children:", Array.from(oldParent.data.children.keys()));
-                console.log("- New parent's children:", Array.from(dragTarget.data.children.keys()));
-            }
-            
-            // Update the D3 hierarchy from the modified data
-            hierarchy = d3.hierarchy(data, d => d.childrenArray)
-                .sum(d => d.data.points)
-                .each(d => { d.value = d.data.points || 0; });
-                
-            // Apply the treemap layout
-            const treemap = d3.treemap().tile(tile);
-            root = treemap(hierarchy);
-            currentView = root;
-            
-            // Reset the domains
-            x.domain([root.x0, root.x1]);
-            y.domain([root.y0, root.y1]);
-            
-            // Clear and redraw
-            svg.selectAll("g").remove();
-            group = svg.append("g").call(render, root);
-        }
-        
-        // Reset drag state
-        draggedNode = null;
-        dragTarget = null;
+        // Position update with separate transition
+        group0.call(position, d);
+        group1.call(position, d.parent);
     }
 
     // Return public interface with functions to get current state
