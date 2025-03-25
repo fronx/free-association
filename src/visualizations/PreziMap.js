@@ -28,7 +28,7 @@ export function createPreziMap(data, width, height) {
     // Create SVG
     svg = d3.create("svg")
         .attr("viewBox", [0, 0, width, height])
-        .style("font", "10px sans-serif")
+        .style("font", "8px sans-serif")
         .style("overflow", "visible");
         
     // Create main group with margin
@@ -215,7 +215,7 @@ export function createPreziMap(data, width, height) {
             .attr("text-anchor", "middle")
             .text(d => d.data.name)
             .style("fill", "#000")
-            .style("font-size", "12px")
+            .style("font-size", "8px")
             .style("font-weight", d => d.data === data ? "bold" : "normal")
             .style("pointer-events", "none")
             .each(function(d) {
@@ -336,6 +336,9 @@ export function createPreziMap(data, width, height) {
         
         nodeUpdate.select(".indicator")
             .attr("x", d => calculateNodeSize(d, nodeWidth, minNodeWidth, maxNodeWidth) / 2 - 25)
+            .attr("y", 0)
+            .attr("dy", "0.35em")
+            .attr("text-anchor", "middle")
             .text(d => d._children ? "+" : d.children ? "-" : "");
         
         nodeUpdate.select(".points")
