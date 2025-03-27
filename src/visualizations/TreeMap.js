@@ -217,8 +217,9 @@ export function createTreemap(data, width, height) {
         node.append("title")
             .text(d => {
                 // Format fulfillment as percentage for the tooltip
+                const fulfillment = d.data.fulfilled !== undefined ? d.data.fulfilled : 0;
                 const fulfillmentText = d === root ? "" : 
-                    `\nFulfillment: ${Math.round(d.data.fulfilled * 100)}%`;
+                    `\nFulfillment: ${Math.round(fulfillment * 100)}%`;
                 return `${name(d)}${fulfillmentText}`;
             });
 
@@ -270,9 +271,9 @@ export function createTreemap(data, width, height) {
             const rectHeight = y(d.y1) - y(d.y0);
             
             // Get current fulfillment value
-            const currentValue = d.data._manualFulfillment !== null 
+            const currentValue = d.data._manualFulfillment !== null && d.data._manualFulfillment !== undefined
                 ? d.data._manualFulfillment 
-                : d.data.fulfilled;
+                : (d.data.fulfilled !== undefined ? d.data.fulfilled : 0);
             
             // Get the fulfillment indicator rectangle
             const indicator = nodeGroup.select("rect.fulfillment-indicator");
