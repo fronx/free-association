@@ -156,10 +156,10 @@ export function createTreemap(data, width, height) {
                 const indicatorWidth = parseFloat(indicator.attr("width"));
                 const rectHeight = y(d.y1) - y(d.y0);
                 
-                // Update handle position and height, keeping it centered
+                // Update handle position and height, keeping it 75% down the rectangle
                 d3.select(this)
                     .attr("x", indicatorWidth - 4)
-                    .attr("y", rectHeight / 2 - 10)
+                    .attr("y", rectHeight * 0.75) // Position it 75% down the rectangle
                     .attr("height", 20);
             });
 
@@ -284,7 +284,7 @@ export function createTreemap(data, width, height) {
             const handle = nodeGroup.append("rect")
                 .attr("class", "fulfillment-handle")
                 .attr("x", indicatorWidth - 4) // Position at right edge of indicator
-                .attr("y", rectHeight / 2 - 10) // Center it vertically
+                .attr("y", rectHeight * 0.75) // Position it 75% down the rectangle
                 .attr("width", 8) // Make handle thick enough to grab
                 .attr("height", 20) // Small centered lip
                 .attr("fill", "rgba(255, 255, 255, 0.7)")
@@ -670,10 +670,10 @@ export function createTreemap(data, width, height) {
                                         const indicatorWidth = parseFloat(indicator.attr("width"));
                                         const rectHeight = y(d.y1) - y(d.y0);
                                         
-                                        // Update handle position and height, keeping it centered
+                                        // Update handle position and height, keeping it 75% down the rectangle
                                         d3.select(this)
                                             .attr("x", indicatorWidth - 4)
-                                            .attr("y", rectHeight / 2 - 10)
+                                            .attr("y", rectHeight * 0.75) // Position it 75% down the rectangle
                                             .attr("height", 20);
                                     });
                                 
