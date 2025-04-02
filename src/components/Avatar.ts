@@ -1,9 +1,8 @@
 // use gun-avatar
 
+// https://gun-avatar.js.org/
+
 /*
-https://gun-avatar.js.org/
-
-
 Avatar generator for GUN public keys
 avatar
 
@@ -52,7 +51,9 @@ embed - enable data embedding or provide data to embed (default: true)
 	import { mountElement } from "gun-avatar";
 	mountElement();
 </script>
+*/
 
+/*
 <gun-avatar
 	pub="0000000kw75Ute2tFhdjDQgzR-GsGhlfSlZxgEZKuquI.2F-j9ItJY44U8vcRAsj-5lxnECG5TDyuPD8gEiuInp8"
 	size="300"

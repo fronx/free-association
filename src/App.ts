@@ -25,6 +25,8 @@ export class App {
     private _lastResizeTime: number = 0
     private _resizeCooldown: number = 100; // ms
     private _initPhaseComplete: boolean = false
+    // Add a subscriptions array to store cleanup functions
+    private _subscriptions: Array<() => void> = [];
     
     constructor() {
         console.log('[App] Constructor started');
@@ -160,6 +162,7 @@ export class App {
         this.saveInterval = setInterval(() => {
             updateUserProfile(this.rootId, this.name);
         }, 60000);
+
     }
 
     // Phase 2: Set up UI container
@@ -629,25 +632,48 @@ export class App {
 
     // Cleanup
     destroy() {
-        // Clean up subscriptions in our tree
-        this.cleanupTreeSubscriptions(this.rootNode);
+        console.log('[App] Destroying App instance');
         
-        // Clean up intervals
-        clearInterval(this.updateInterval);
-        clearInterval(this.saveInterval);
+        // Stop update intervals
+        if (this.updateInterval) {
+            clearInterval(this.updateInterval);
+            this.updateInterval = null;
+        }
         
-        // Clean up resize observer
+        if (this.saveInterval) {
+            clearInterval(this.saveInterval);
+            this.saveInterval = null;
+        }
+        
+        // Disconnect resize observer
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
             this.resizeObserver = null;
         }
         
-        // Remove window resize event listener
-        window.removeEventListener('resize', () => this.handleResize());
+        // Clean up subscriptions
+        this.cleanupTreeSubscriptions(this.rootNode);
         
-        // Clean up treemap if it exists
-        if (this.treemap && typeof this.treemap.destroy === 'function') {
-            this.treemap.destroy();
+        // Clean up our added subscriptions
+        this._subscriptions.forEach(unsub => {
+            try {
+                unsub();
+            } catch (err) {
+                console.error('[App] Error in subscription cleanup:', err);
+            }
+        });
+        this._subscriptions = [];
+        
+        // Clear reference to this app instance
+        if (window && (window as any).app === this) {
+            (window as any).app = null;
         }
+        
+        console.log('[App] App instance destroyed');
+    }
+
+    // Add a new method to add a subscription to the _subscriptions array
+    addSubscription(subscription: () => void) {
+        this._subscriptions.push(subscription);
     }
 }

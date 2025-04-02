@@ -23,8 +23,8 @@ type TreemapInstance = {
 
 export function createTreemap(data: TreeNode, width: number, height: number): TreemapInstance {
     // State variables for growth animation
-    let growthInterval: number | null = null;
-    let growthTimeout: number | null = null;
+    let growthInterval: ReturnType<typeof setInterval > | null = null;
+    let growthTimeout: ReturnType<typeof setTimeout > | null = null;
     const GROWTH_RATE = (d: d3.HierarchyRectangularNode<TreeNode>) => d.data.points * 0.05;
     const GROWTH_TICK = 50;
     const GROWTH_DELAY = 500;

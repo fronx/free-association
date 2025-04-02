@@ -1,3 +1,6 @@
+import { defineConfig } from 'vite'
+import { svelte } from '@sveltejs/vite-plugin-svelte'
+
 const moduleExclude = match => {
     const m = id => id.indexOf(match) > -1
     return {
@@ -29,5 +32,6 @@ const moduleExclude = match => {
     },
     plugins: [
       moduleExclude('text-encoding'),
+      svelte()
     ],
   }

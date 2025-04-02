@@ -1,6 +1,6 @@
 import { App } from '../App';
 import { GunNode } from './GunNode';
-import { GunSubscription, SubscriptionCleanup, SubscriptionHandler } from './GunSubscription';
+import { GunSubscription, type SubscriptionCleanup, type SubscriptionHandler } from './GunSubscription';
 import { gun } from './Gun';
 
 

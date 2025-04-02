@@ -2,7 +2,7 @@ import { gun } from './Gun';
 import { App } from '../App';
 import { GunSubscription } from './GunSubscription';
 import { GunNode } from './GunNode';
-import { Reactive, Computed, ReactiveEntity, ComputationCache } from './Reactive'
+import { Reactive, ReactiveEntity, ComputationCache } from './Reactive'
 
 /**
  * Interface describing the data structure of a tree node
@@ -121,8 +121,8 @@ export class TreeNode extends ReactiveEntity<TreeNodeData> {
     
     // Set properties
     node.name = name;
-    node.points = options.points ?? 0;
-    node.manualFulfillment = options.manualFulfillment ?? null;
+    node.points = options.points ?? 1;
+    node.manualFulfillment = options.manualFulfillment ?? 1;
     
     // Set parent
     if (options.parent) {
@@ -148,12 +148,15 @@ export class TreeNode extends ReactiveEntity<TreeNodeData> {
     
     // Set up data properties
     this.defineReactiveProperty('name', '', ['nodes', id, 'name']);
-    this.defineReactiveProperty('points', 0, ['nodes', id, 'points']);
-    this.defineReactiveProperty('manualFulfillment', null, ['nodes', id, 'manualFulfillment']);
+    this.defineReactiveProperty('points', 1, ['nodes', id, 'points']);
+    this.defineReactiveProperty('manualFulfillment', 1, ['nodes', id, 'manualFulfillment']);
     
     // Set up computed properties related to tree structure
     this.defineComputedProperty('isRoot', () => this._parent === null);
     this.defineComputedProperty('root', () => this.isRoot ? this : this._parent!.root);
+    
+    // Add missing computed property for children
+    this.defineComputedProperty('children', () => this._children.value);
     
     // Set up computed properties related to contributions
     this.defineComputedProperty('isContributor', () => this.points > 0);
@@ -420,7 +423,9 @@ export class TreeNode extends ReactiveEntity<TreeNodeData> {
             currentShares[typeId] = ourShare[1] / sum;
             this._sharesOfOthersRecognition.value = currentShares;
             
-            // Update UI
+            // NOTE: UI updates will now be triggered via the stream subscription
+            // when _sharesOfOthersRecognition changes
+            // But we'll keep these lines for now until the UI update stream is fully integrated
             this._app.updateNeeded = true;
             this._app.pieUpdateNeeded = true;
           }
@@ -471,7 +476,9 @@ export class TreeNode extends ReactiveEntity<TreeNodeData> {
       this._parent = null;
     }
     
-    // Update UI
+    // NOTE: UI updates will now be triggered via the stream subscription
+    // when _parent, _children, or related computed properties change
+    // But we'll keep these lines for now until the UI update stream is fully integrated
     this._app.updateNeeded = true;
     this._app.pieUpdateNeeded = true;
   }
@@ -588,6 +595,11 @@ export class TreeNode extends ReactiveEntity<TreeNodeData> {
    */
   public addType(typeId: string): TreeNode {
     if (!this._types.value.has(typeId)) {
+      // Remove all children first
+      for (const [childId] of this._children.value) {
+        this.removeChild(childId);
+      }
+
       // Add to types set
       const types = new Set(this._types.value);
       types.add(typeId);
@@ -657,7 +669,9 @@ export class TreeNode extends ReactiveEntity<TreeNodeData> {
       id
     }, this._app);
     
-    // Update UI
+    // NOTE: UI updates will now be triggered via the stream subscription
+    // when the child is added to _children
+    // But we'll keep these lines for now until the UI update stream is fully integrated
     this._app.updateNeeded = true;
     this._app.pieUpdateNeeded = true;
     
@@ -719,6 +733,69 @@ export class TreeNode extends ReactiveEntity<TreeNodeData> {
     // Remove from registry
     TreeNode._registry.delete(this._nodeId);
   }
+
+    /**
+   * Create a stream that emits UI update requirements
+   * This replaces manual setting of App.updateNeeded and App.pieUpdateNeeded flags
+   * @returns A subscription that emits UI update requirements whenever node data changes
+   */
+    public getUIUpdateStream(): GunSubscription<{ updateNeeded: boolean, pieUpdateNeeded: boolean }> {
+      // Create a custom GunSubscription that tracks multiple properties
+      return {
+        on: (handler: (updates: { updateNeeded: boolean, pieUpdateNeeded: boolean }) => void) => {
+          const cleanups: (() => void)[] = [];
+          
+          // Track properties that affect visualization
+          const reactiveProps = ['name', 'points', 'manualFulfillment'];
+          const computedProps = ['isRoot', 'weight', 'fulfilled', 'shares', 'totalChildPoints', 'shareOfParent'];
+          
+          // Subscribe to reactive property changes
+          reactiveProps.forEach(prop => {
+            if (this._reactives.has(prop)) {
+              const reactive = this._reactives.get(prop);
+              const cleanup = reactive!.subscribe(() => {
+                handler({ updateNeeded: true, pieUpdateNeeded: true });
+              });
+              cleanups.push(cleanup);
+            }
+          });
+          
+          // Subscribe to computed property changes
+          computedProps.forEach(prop => {
+            if (this._computed.has(prop)) {
+              const computed = this._computed.get(prop);
+              const cleanup = computed!.subscribe(() => {
+                handler({ updateNeeded: true, pieUpdateNeeded: true });
+              });
+              cleanups.push(cleanup);
+            }
+          });
+          
+          // Subscribe to children changes
+          const childrenCleanup = this._children.subscribe(() => {
+            handler({ updateNeeded: true, pieUpdateNeeded: true });
+          });
+          cleanups.push(childrenCleanup);
+          
+          // Subscribe to types changes
+          const typesCleanup = this._types.subscribe(() => {
+            handler({ updateNeeded: true, pieUpdateNeeded: true });
+          });
+          cleanups.push(typesCleanup);
+          
+          // Subscribe to shares recognition changes
+          const sharesCleanup = this._sharesOfOthersRecognition.subscribe(() => {
+            handler({ updateNeeded: true, pieUpdateNeeded: true });
+          });
+          cleanups.push(sharesCleanup);
+          
+          // Return a single cleanup function that handles all subscriptions
+          return () => {
+            cleanups.forEach(cleanup => cleanup());
+          };
+        }
+      } as GunSubscription<{ updateNeeded: boolean, pieUpdateNeeded: boolean }>;
+    }
   
   /**
    * Clean up all registered nodes

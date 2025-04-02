@@ -1,6 +1,6 @@
 import * as d3 from 'd3';
-import { getColorForName } from '../utils/colorUtils.js';
-import { calculateFontSize } from '../utils/fontUtils.js';
+import { getColorForName } from '../../utils/colorUtils.js';
+import { calculateFontSize } from '../../utils/fontUtils.js';
 
 // lets just visualize: rootNode.sharesOfGeneralFulfillment for the proportions!
 // and the mutual-recognition of each relation!

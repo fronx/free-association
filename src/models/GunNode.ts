@@ -1,5 +1,5 @@
 import { gun } from './Gun';
-import { GunSubscription, SubscriptionCleanup, SubscriptionHandler } from './GunSubscription';
+import { GunSubscription, type SubscriptionCleanup, type SubscriptionHandler } from './GunSubscription';
 
 /**
  * Base class for Gun node wrappers that provides a consistent API
