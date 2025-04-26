@@ -66,6 +66,21 @@ export interface GunData {
 	[key: string]: any;
 }
 
+// Space enum to identify which Gun space to use
+export enum GunSpace {
+	PUBLIC = 'public', // Default - public space
+	USER = 'user', // User space (~publicKey)
+	FROZEN = 'frozen' // Frozen space (#tag)
+}
+
+// Path specification with space information
+export interface GunPathSpec {
+	segments: string[]; // Path segments to navigate
+	space: GunSpace; // Which space this path exists in
+	ownerPub?: string; // Optional owner public key for user space
+	tag?: string; // Optional tag for frozen space
+}
+
 // Types for certificate management
 export interface Grantee {
 	pub: string;
@@ -392,7 +407,12 @@ export const getPath = async (path: string) => {
 
 // Create a node reference at a path - helper function to work with GunNode
 export const getNodeRef = (path: string[]) => {
-	let ref = gun as any;
+	if (path.length === 0) {
+		return gun;
+	}
+
+	// Return a backward-compatible Gun reference
+	let ref = gun;
 	for (const segment of path) {
 		ref = ref.get(segment);
 	}
@@ -401,7 +421,12 @@ export const getNodeRef = (path: string[]) => {
 
 // Create a node reference that uses the transient Gun instance (won't save to localStorage)
 export const getTransientNodeRef = (path: string[]) => {
-	let ref = transientGun as any;
+	if (path.length === 0) {
+		return transientGun;
+	}
+
+	// Return a backward-compatible Gun reference
+	let ref = transientGun;
 	for (const segment of path) {
 		ref = ref.get(segment);
 	}
@@ -746,4 +771,9 @@ export function customStore(ref: any, methods = {}) {
 	}
 
 	return { ...methods, subscribe };
+}
+
+export function createLegacyNodeRef(path: string[], transient: boolean = false): GunNode<any> {
+	// Create a node with backward compatibility
+	return new GunNode(path, undefined, transient);
 }

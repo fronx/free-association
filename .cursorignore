@@ -8,3 +8,6 @@
 *.pptx
 *.ppt
 *node_modules
+.npmrc
+.env
+.vscode
