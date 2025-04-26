@@ -407,12 +407,7 @@ export const getPath = async (path: string) => {
 
 // Create a node reference at a path - helper function to work with GunNode
 export const getNodeRef = (path: string[]) => {
-	if (path.length === 0) {
-		return gun;
-	}
-
-	// Return a backward-compatible Gun reference
-	let ref = gun;
+	let ref = gun as any;
 	for (const segment of path) {
 		ref = ref.get(segment);
 	}
@@ -421,12 +416,7 @@ export const getNodeRef = (path: string[]) => {
 
 // Create a node reference that uses the transient Gun instance (won't save to localStorage)
 export const getTransientNodeRef = (path: string[]) => {
-	if (path.length === 0) {
-		return transientGun;
-	}
-
-	// Return a backward-compatible Gun reference
-	let ref = transientGun;
+	let ref = transientGun as any;
 	for (const segment of path) {
 		ref = ref.get(segment);
 	}
@@ -771,9 +761,4 @@ export function customStore(ref: any, methods = {}) {
 	}
 
 	return { ...methods, subscribe };
-}
-
-export function createLegacyNodeRef(path: string[], transient: boolean = false): GunNode<any> {
-	// Create a node with backward compatibility
-	return new GunNode(path, undefined, transient);
 }

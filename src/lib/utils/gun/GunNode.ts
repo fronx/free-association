@@ -29,23 +29,19 @@ export class GunNode<T = any> {
 		// Handle path or pathSpec input
 		if (Array.isArray(pathOrSpec)) {
 			// Convert simple path to pathSpec
-			this.path = [...pathOrSpec]; // Create a copy
+			this.path = [...pathOrSpec];
 			this.pathSpec = {
 				segments: this.path,
 				space: GunSpace.PUBLIC
 			};
-
-			// Use old method for backward compatibility
-			this.chain = transient ? getTransientNodeRef(this.path) : getNodeRef(this.path);
 		} else {
 			// Use provided pathSpec
-			this.pathSpec = { ...pathOrSpec }; // Create a copy
-			this.path = [...this.pathSpec.segments];
-
-			// Use the new space-aware method
-			this.chain = this.getSpaceAwareRef(transient);
+			this.pathSpec = pathOrSpec;
+			this.path = [...pathOrSpec.segments];
 		}
 
+		// Get the appropriate chain based on space
+		this.chain = this.getSpaceAwareRef(transient);
 		this.certificate = certificate;
 		this.isTransient = transient;
 	}
@@ -54,43 +50,43 @@ export class GunNode<T = any> {
 	 * Get the appropriate Gun reference based on space
 	 */
 	private getSpaceAwareRef(transient: boolean): any {
-		// Get the base Gun instance
+		// Select base reference based on space
+		let baseRef;
+
 		const gunInstance = transient ? getTransientNodeRef(this.path) : getNodeRef(this.path);
 		const userInstance = transient ? transientUser : user;
 
-		let ref;
-
-		// Set up the base reference based on space
 		switch (this.pathSpec.space) {
 			case GunSpace.USER:
 				if (this.pathSpec.ownerPub) {
-					// Specific user's space - use gun.user(pub)
-					ref = gunInstance.user(this.pathSpec.ownerPub);
+					// Specific user's space
+					baseRef = gunInstance.user(this.pathSpec.ownerPub);
 				} else if (userInstance.is?.pub) {
 					// Current authenticated user's space
-					ref = userInstance;
+					baseRef = userInstance;
 				} else {
 					console.warn('No user specified or authenticated. Falling back to public space.');
-					ref = gunInstance;
+					baseRef = gunInstance;
 				}
 				break;
 
 			case GunSpace.FROZEN:
-				// Frozen space with tag
+				// Frozen space typically starts with a tag
 				if (this.pathSpec.tag) {
-					ref = gunInstance.get(`#${this.pathSpec.tag}`);
+					baseRef = gunInstance.get(`#${this.pathSpec.tag}`);
 				} else {
-					ref = gunInstance;
+					baseRef = gunInstance;
 				}
 				break;
 
 			case GunSpace.PUBLIC:
 			default:
-				ref = gunInstance;
+				baseRef = gunInstance;
 		}
 
 		// Navigate path segments
-		for (const segment of this.pathSpec.segments) {
+		let ref = baseRef;
+		for (const segment of this.path) {
 			ref = ref.get(segment);
 		}
 
@@ -372,8 +368,10 @@ export class GunNode<T = any> {
 			// Choose the appropriate resolution method based on soul format
 			if (soul.startsWith('~')) {
 				// User space reference
-				gun.get(soul).once((userData: any) => {
-					// Use get with full soul instead of user()
+				const parts = soul.substring(1).split('/');
+				const userPub = parts[0];
+
+				gun.user(userPub).once((userData: any) => {
 					clearTimeout(timeout);
 					resolve(userData);
 				});
